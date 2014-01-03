@@ -1,0 +1,811 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>You Only Get One Ski!</title>
+<style>
+
+body
+{
+	margin: 0; padding: 0;
+	background: #eaf7f7;
+	overflow: hidden;
+}
+
+canvas
+{
+	position: fixed;
+	top: 0; left: 0;
+	z-index: 0;
+}
+
+.Hud
+{
+	position: fixed;
+	top: 0; right: 0;
+	z-index: 1;
+	padding: .5em 1em;
+	font: 100% monospace; color: #333;
+	white-space: nowrap;
+}
+
+.Message
+{
+	position: fixed;
+	top: 0; left: 0;
+	z-index: 2;
+	width: 100%; height: 100%;
+	background: #fff;
+	opacity: .75;
+	font: 100% sans-serif; color: #333;
+	line-height: 1.5;
+	text-align: center;
+	overflow: auto;
+}
+
+p
+{
+	margin: 1em auto;
+	max-width: 30em;
+}
+
+</style>
+</head>
+<body>
+<canvas id="Game">Sorry, your browser does not support
+the &lt;canvas&gt; element.</canvas>
+<div id="Welcome" class="Message">
+<h1><span>You</span>
+<span>Only</span>
+<span>Get</span>
+<span>One</span>
+<span>Ski</span>!</h1>
+<p id="Loading">Loading ...</p>
+<h2>Controls</h2>
+<p>Use cursor, mouse or finger to set direction.</p>
+<p>Since you only get one ski, your drive becomes unstable as soon
+as you are turning left.</p>
+</div>
+<script>
+
+"use script";
+
+// shim layer with setTimeout fallback
+// see http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+window.requestAnimFrame =
+	window.requestAnimationFrame ||
+	window.webkitRequestAnimationFrame ||
+	window.mozRequestAnimationFrame ||
+	window.oRequestAnimationFrame ||
+	window.msRequestAnimationFrame ||
+	function( callback, element )
+	{
+		window.setTimeout(
+			function()
+			{
+				callback( new Date().getTime() );
+			},
+			16 );
+	};
+
+var atlas,
+	canvas,
+	ctx,
+	ratio,
+	width,
+	height,
+	centerX,
+	centerY,
+	now,
+	start,
+	last,
+	frame,
+	factor,
+	pointerX,
+	pointerY,
+	pointerSet = false,
+	playerX,
+	playerY,
+	playerSpeed,
+	playerVerticalSpeed,
+	playerHeading,
+	skiHeading,
+	maxSpeed = 4,
+	crashed,
+	finishAt,
+	screenFinish,
+	mark,
+	marks,
+	maxMarks = 64,
+	lastMarkX,
+	lastMarkY,
+	sprites = {
+		flake: { res: [
+			{/*flake2*/x:0,y:1198,w:2,h:2},
+			{/*flake4*/x:0,y:1198,w:4,h:4},
+			{/*flake6*/x:0,y:1198,w:6,h:6}] },
+		tree1: { res: [
+			{/*tree0*/x:0,y:1198,w:6,h:6}],
+			crash: true },
+		tree2: { res: [
+			{/*tree1*/x:0,y:1198,w:6,h:6}],
+			crash: true },
+		jump: { res: [
+			{/*jump*/x:0,y:1198,w:6,h:6}] },
+		santa: { res: [
+			{/*santa*/x:0,y:1198,w:6,h:6}],
+			crash: true },
+		gift: { res: [
+			{/*gift*/x:0,y:1198,w:6,h:6}] },
+		rabbit: { res: [
+			{/*rabbit0*/x:0,y:1198,w:2,h:2},
+			{/*rabbit1*/x:0,y:1198,w:6,h:6}] },
+		driving: { res: [
+			{/*driving0*/x:0,y:1198,w:2,h:2},
+			{/*driving1*/x:0,y:1198,w:6,h:6}] },
+		crashing: { res: [
+			{/*crashing0*/x:0,y:1198,w:2,h:2},
+			{/*crashing1*/x:0,y:1198,w:6,h:6}] }
+	},
+	splashing = false,
+	drops = [],
+	snow = [],
+	objects = [],
+	messages = {};
+
+function message( name, content, cls )
+{
+	if( messages[name] )
+	{
+		messages[name].style.display = "block";
+		return true;
+	}
+
+	var e = document.createElement( "div" );
+
+	if( !e )
+		return false;
+
+	e.className = cls || "Message";
+	e.innerHTML = content;
+	e.onclick = function()
+	{
+		e.style.display = "none";
+		reset();
+		run();
+	}
+
+	document.body.appendChild( e );
+	messages[name] = e;
+
+	return true;
+}
+
+function fail()
+{
+	message(
+		"fail",
+		"<h1>Ouch!</h1>"+
+		"<p>Touch anywhere to try again!</p>" );
+}
+
+function success()
+{
+	message(
+		"success",
+		"<h1>Congratulations!</h1>"+
+		"<p>You made it!</p>" );
+}
+
+function hud( text )
+{
+	if( !messages.hud &&
+		message( "hud", null, "Hud" ) )
+		return;
+
+	messages.hud.innerHTML = text;
+}
+
+function drawSplash( bottom )
+{
+	if( !splashing )
+		return;
+
+	ctx.fillStyle = '#fff';
+
+	for( var n = drops.length; n--; )
+	{
+		var drop = drops[n];
+
+		if( drop.live < 0 )
+			continue;
+
+		--drop.live;
+		drop.x += drop.vx*factor;
+		drop.y += drop.vy*factor;
+
+		var y = bottom-drop.y | 0;
+
+		ctx.beginPath();
+		ctx.arc(
+			drop.x | 0,
+			y,
+			drop.size,
+			0,
+			6.28,
+			false );
+		ctx.closePath();
+		ctx.fill();
+
+		splashing = true;
+	}
+}
+
+function drawSnow()
+{
+	ctx.fillStyle = '#fff';
+
+	for( var n = snow.length; n--; )
+	{
+		var flake = snow[n];
+
+		flake.x += flake.vx*factor;
+		flake.y += (flake.vy-playerVerticalSpeed)*factor;
+
+		ctx.beginPath();
+		ctx.arc(
+			flake.x | 0,
+			flake.y | 0,
+			flake.size | 0,
+			0,
+			6.28,
+			false );
+		ctx.closePath();
+		ctx.fill();
+
+		/*var r = flake.res;
+		ctx.drawImage(
+			atlas,
+			r.x,
+			r.y,
+			r.w,
+			r.h,
+			flake.x | 0,
+			flake.y | 0,
+			r.w,
+			r.h );*/
+
+		if( flake.x < 0 || flake.x > width ||
+			flake.y < 0 || flake.y > height )
+		{
+			flake.x = Math.random()*(width+height) | 0;
+
+			if( flake.x > width )
+			{
+				flake.y = flake.x-width;
+				flake.x = width;
+			}
+			else
+				flake.y = 0;
+		}
+	}
+}
+
+function drawPlayer( x, y )
+{
+	ctx.save();
+	ctx.translate( x, y );
+	ctx.rotate( skiHeading );
+
+	ctx.fillStyle = "#811";
+	ctx.beginPath();
+	ctx.moveTo( 0, -20 );
+	ctx.lineTo( -3, -15 );
+	ctx.lineTo( -3, 15 );
+	ctx.lineTo( 3, 15 );
+	ctx.lineTo( 3, -15 );
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.fillStyle = "#a11";
+	ctx.beginPath();
+	ctx.arc(
+		6,
+		0,
+		6,
+		0,
+		6.28,
+		false );
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.fillStyle = "#fff";
+	ctx.beginPath();
+	ctx.arc(
+		6,
+		3,
+		3,
+		0,
+		6.28,
+		false );
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.restore();
+}
+
+function drawObject( y, o )
+{
+	var x = o.screenX;
+
+	ctx.beginPath();
+	ctx.moveTo( x, y-15 );
+	ctx.lineTo( x-10, y+12 );
+	ctx.lineTo( x-2, y+12 );
+	ctx.lineTo( x-2, y+15 );
+	ctx.lineTo( x+2, y+15 );
+	ctx.lineTo( x+2, y+12 );
+	ctx.lineTo( x+10, y+12 );
+	ctx.closePath();
+	ctx.fill();
+}
+
+function drawObjects( bottom )
+{
+	ctx.fillStyle = '#484';
+
+	for( var n = objects.length; --n; )
+	{
+		var o = objects[n],
+			y = bottom-o.screenY;
+
+		if( y < -15 || y > height+15 )
+			continue;
+
+		if( !crashed &&
+			o.sprite.crash &&
+			playerX > o.screenLeft &&
+			playerX < o.screenRight &&
+			playerY > o.screenTop &&
+			playerY < o.screenBottom )
+			crashed = true;
+
+		drawObject( y, o );
+	}
+}
+
+function drawMarks( bottom )
+{
+	ctx.strokeStyle = "#dae7e7";
+	ctx.lineWidth = 6;
+	ctx.beginPath();
+	ctx.moveTo( playerX, centerY );
+
+	for( var n = mark, l = maxMarks; --l; )
+	{
+		if( --n < 0 )
+			n = maxMarks-1;
+
+		var m = marks[n];
+
+		if( m == null )
+			break;
+
+		var y = bottom-m.y;
+
+		ctx.lineTo( m.x, y );
+
+		if( y > height )
+			break;
+	}
+
+	ctx.stroke();
+}
+
+function draw()
+{
+	ctx.clearRect( 0, 0, width, height );
+
+	var bottom = centerY+playerY;
+
+	drawMarks( bottom );
+	drawObjects( bottom );
+	drawPlayer( playerX, centerY );
+	drawSplash( bottom );
+	drawSnow();
+}
+
+function run()
+{
+	now = new Date().getTime();
+	factor = 16/(now-last);
+	last = now;
+	++frame;
+
+	if( frame % 60 == 0 )
+		hud( ((now-start)/1000 | 0)+"s" );
+
+	if( playerX < 0 ||
+		playerX > width )
+		crashed = true;
+
+	if( !crashed )
+	{
+		if( pointerSet )
+			turnToPointer();
+
+		ski();
+	}
+	else
+	{
+		if( !splashing )
+		{
+			splash();
+			splashing = true;
+		}
+
+		if( playerSpeed < .1 )
+		{
+			fail();
+			return;
+		}
+
+		playerSpeed *= .95;
+		skiHeading += Math.random()*.2*playerSpeed;
+		move();
+	}
+
+	draw();
+
+	if( playerY > screenFinish )
+	{
+		if( skiHeading > 2 )
+		{
+			success();
+			return;
+		}
+
+		turn( 1 );
+	}
+
+
+	requestAnimFrame( run );
+}
+
+function splash()
+{
+	var angle = playerHeading,
+		speed = playerSpeed;
+
+	angle += 1.5707;
+
+	for( var n = 16; n--; )
+	{
+		var a = angle+(Math.random()-.5),
+			s = Math.min( .5, Math.random() )*speed;
+
+		drops[n] = {
+			x: playerX,
+			y: playerY,
+			size: (2+Math.random()*4) | 0,
+			vx: Math.cos( a )*s,
+			vy: Math.sin( a )*s,
+			live: Math.random()*64
+		};
+	}
+}
+
+function move()
+{
+	var heading = playerHeading-1.5707;
+
+	playerVerticalSpeed = Math.sin( heading )*playerSpeed;
+
+	playerX += Math.cos( heading )*playerSpeed;
+	playerY -= playerVerticalSpeed;
+}
+
+function ski()
+{
+	if( playerSpeed > .1 &&
+		(skiHeading < 0 || skiHeading > 4.7) )
+		skiHeading += (Math.random()-.5)*.1;
+
+	var skiToSlope = Math.max( 0, Math.cos( skiHeading ) ),
+		skiToHeading = (skiHeading-playerHeading+6.283) % 6.283;
+
+	playerSpeed +=
+		factor*skiToSlope*Math.cos( skiHeading ) -
+		(Math.abs( Math.sin( skiToHeading ) )-
+		Math.min( 0, Math.cos( playerHeading ) ));
+
+	playerSpeed = Math.min( maxSpeed, Math.max( 0, playerSpeed ) );
+
+	if( skiToHeading > 3.1415 )
+		skiToHeading -= 6.283;
+
+	playerHeading += factor*skiToHeading;
+	playerHeading %= 6.283;
+
+	move();
+
+	if( frame % 3 == 0 )
+	{
+		if( playerX == lastMarkX &&
+			playerY == lastMarkY )
+			return;
+
+		lastMarkX = playerX;
+		lastMarkY = playerY;
+
+		marks[mark] = {
+			x: playerX,
+			y: playerY };
+
+		if( ++mark == maxMarks )
+			mark = 0;
+	}
+}
+
+function turnToPointer()
+{
+	var dx = pointerX-playerX,
+		dy = pointerY-centerY,
+		a = (Math.atan2( dy, dx )+1.5707) % 6.283,
+		d = (a-skiHeading+6.283) % 6.283;
+
+	if( d > 3.1415 )
+		d -= 6.283;
+
+	turn( d );
+}
+
+function turn( direction )
+{
+	if( playerSpeed > .1 &&
+		direction < 0 )
+		direction += Math.random()*1.1;
+
+	skiHeading += (direction > 0 ? .1 : -.1)*factor;
+	skiHeading %= 6.283;
+}
+
+function key( ev )
+{
+	var e = event || ev;
+
+	switch( e.keyCode )
+	{
+		case 72:
+		case 37:
+			turn( -1 );
+			break;
+		case 76:
+		case 39:
+			turn( 1 );
+			break;
+	}
+}
+
+function setPointer( ev )
+{
+	var e = ev || event;
+
+	if( e.touches )
+	{
+		var t = e.touches[0];
+
+		pointerX = t.pageX;
+		pointerY = t.pageY;
+	}
+	else if( e.clientX !== "undefined" )
+	{
+		pointerX = e.clientX;
+		pointerY = e.clientY;
+	}
+	else
+	{
+		pointerX = e.pageX;
+		pointerY = e.pageY;
+	}
+
+	//pointerSet = e.button > -1; //(e.button || e.which) > 0;
+}
+
+function pointerUp( ev )
+{
+	pointerSet = false;
+
+	ev.preventDefault();
+	return false;
+}
+
+function pointerMove( ev )
+{
+	setPointer( ev );
+
+	ev.preventDefault();
+	return false;
+}
+
+function pointerDown( ev )
+{
+	pointerSet = true;
+	setPointer( ev );
+
+	ev.preventDefault();
+	return false;
+}
+
+function generate()
+{
+	var y = .3;
+
+	for( var n = window.innerWidth >> 1;
+		n--;
+		y += Math.random()*.1 )
+	{
+		var x = Math.random(),
+			s = Math.random()*4,
+			sprite;
+
+		/*if( s < .2 )
+			sprite = "rabbit";
+		else if( s < .4 )
+			sprite = "santa";
+		else if( s < .6 )
+			sprite = "jump";
+		else if( s < 2 )
+			sprite = "tree1";
+		else*/
+			sprite = "tree2";
+
+		objects.push( {
+			sprite: sprites[sprite],
+			x: n % 2 ? (x < .5 ? 0 : .9)+x*.1 : x,
+			y: y } );
+	}
+
+	finishAt = y;
+}
+
+function scaleToScreen()
+{
+	for ( var n = objects.length; n--; )
+	{
+		var o = objects[n];
+
+		o.screenX = o.x*width | 0;
+		o.screenY = o.y*height | 0;
+
+		o.screenLeft = o.screenX-10;
+		o.screenRight = o.screenX+10;
+		o.screenTop = o.screenY-15;
+		o.screenBottom = o.screenY+15;
+	}
+
+	playerX = centerX;
+	playerY = 0;
+
+	screenFinish = finishAt*height | 0;
+
+	for( var n = 100; n--; )
+	{
+		var f = Math.random()+.5;
+
+		snow[n] = {
+			x: Math.random()*width | 0,
+			y: Math.random()*height | 0,
+			size: (Math.random()*3+2) | 0,
+			vx: -.5*f,
+			vy: .8*f };
+	}
+}
+
+function reset()
+{
+	start = new Date().getTime();
+	last = start-16;
+	frame = 0;
+	crashed = false;
+	splashing = false;
+	playerX = centerX;
+	playerY = 0;
+	playerSpeed = 0;
+	playerVerticalSpeed = 0;
+	playerHeading = 1.57;
+	skiHeading = playerHeading;
+	mark = 0;
+	marks = [];
+	lastMarkX = 0;
+	lastMarkY = 0;
+}
+
+function resize()
+{
+	width = window.innerWidth;
+	height = window.innerHeight;
+
+	centerX = width >> 1;
+	centerY = height*.8 | 0;
+
+	canvas.width = width*ratio | 0;
+	canvas.height = height*ratio | 0;
+
+	canvas.style.width = width+"px";
+	canvas.style.height = height+"px";
+
+	ctx.setTransform(
+		ratio,
+		0,
+		0,
+		ratio,
+		0,
+		0 );
+
+	scaleToScreen();
+	reset();
+}
+
+function ready()
+{
+	var e = document.getElementById( "Welcome" );
+	e.onclick = function()
+	{
+		this.style.display = "none";
+	}
+
+	var e = document.getElementById( "Loading" );
+	e.innerHTML = "Touch anywhere to start!";
+}
+
+function init()
+{
+	if( !atlas )
+	{
+		atlas = new Image();
+		atlas.src = "atlas.png";
+	}
+
+	if( !atlas.complete )
+		setTimeout( init, 500 );
+
+	if( !(canvas = document.getElementById( "Game" )) ||
+		!(ctx = canvas.getContext( "2d" )) )
+		return;
+
+	ratio = (window.devicePixelRatio || 1)/
+		(ctx.webkitBackingStorePixelRatio ||
+		ctx.mozBackingStorePixelRatio ||
+		ctx.msBackingStorePixelRatio ||
+		ctx.oBackingStorePixelRatio ||
+		ctx.backingStorePixelRatio ||
+		1);
+
+	generate();
+
+	window.onresize = resize;
+	resize();
+
+	canvas.onmousedown = pointerDown;
+	canvas.onmousemove = pointerMove;
+	canvas.onmouseup = pointerUp;
+
+	if( "ontouchstart" in canvas )
+	{
+		canvas.ontouchstart = pointerDown;
+		canvas.ontouchmove = pointerMove;
+		canvas.ontouchend = pointerUp;
+	}
+
+	document.onkeydown = key;
+
+	run();
+	ready();
+}
+
+window.onload = init;
+
+</script>
+</body>
+</html>
