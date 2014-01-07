@@ -1,13 +1,14 @@
-OBJECTS = *.html
-PRODUCTION = hhsw.de@ssh.strato.de:sites/proto/ld28/
-OPTIONS = --recursive \
-	--links \
+OBJECTS = *.html *.png
+PRODUCTION = hhsw.de@ssh.strato.de:sites/Ski
+OPTIONS = \
+	--recursive \
 	--update \
 	--delete-after \
 	--times \
 	--compress
 
-production:
-	rsync $(OPTIONS) \
-		$(OBJECTS) \
-		$(PRODUCTION)
+up: atlas.png
+	rsync $(OPTIONS) $(OBJECTS) $(PRODUCTION)
+
+atlas.png: img/*
+	mkatlas img/* | patchatlas index.html
