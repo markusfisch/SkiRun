@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>2Ski!</title>
+<title>2Ski</title>
 <style>
 
 body
@@ -14,8 +14,7 @@ body
 
 </style>
 <body>
-<canvas id="Ski">Sorry, your browser's lacking a
-&lt;canvas&gt; implementation.</canvas>
+<canvas id="Ski">Sorry, can't run in this setup.</canvas>
 <script>
 
 "use strict";
@@ -44,31 +43,7 @@ window.requestAnimFrame =
 			16 );
 	};
 
-var objects = {
-		skier1: {
-			res: [
-				{/*skier1-straight*/x:121,y:335,w:25,h:54},
-				{/*skier1-lean1-left*/x:208,y:256,w:24,h:59},
-				{/*skier1-lean2-left*/x:92,y:256,w:32,h:64},
-				{/*skier1-lean3-left*/x:154,y:256,w:30,h:63},
-				{/*skier1-jump*/x:48,y:335,w:48,h:54},
-				{/*skier1-crashed*/x:178,y:335,w:32,h:42}]
-		},
-		skier2: {
-			res: [
-				{/*skier2-straight*/x:96,y:335,w:25,h:54},
-				{/*skier2-lean1-left*/x:184,y:256,w:24,h:59},
-				{/*skier2-lean3-left*/x:124,y:256,w:30,h:63},
-				{/*skier2-lean2-left*/x:60,y:256,w:32,h:64},
-				{/*skier2-jump*/x:0,y:335,w:48,h:54},
-				{/*skier2-crashed*/x:146,y:335,w:32,h:42}]
-		},
-		tree: {
-			res: [{/*tree*/x:0,y:256,w:60,h:79}] },
-		hump: {
-			res: [{/*hump*/x:0,y:0,w:256,h:256}] }
-	},
-	atlas,
+var atlas,
 	canvas,
 	ctx,
 	ratio,
@@ -76,40 +51,126 @@ var objects = {
 	height,
 	centerX,
 	centerY,
-	pointerSet = false,
-	pointers = 0,
+	pointerLength = 0,
 	pointerX = [],
 	pointerY = [],
-	now,
 	last,
 	factor,
-	playerX,
-	playerY;
+	playersLength = 2,
+	players = [],
+	objectsLength = 20,
+	objects = [],
+	sprites = {},
+	orientationsLength = 36,
+	indexFactor = orientationsLength/2/Math.PI;
+
+// DEBUG
+var dbgAngle = 0,
+	dbgFrame = 0,
+	dbgSprite = 0,
+	dbgSprites = [
+		"Straight",
+		"LeanLeft1",
+		"LeanLeft2",
+		"LeanLeft3",
+		"LeanLeft2",
+		"LeanLeft1",
+		"Straight",
+		"LeanRight1",
+		"LeanRight2",
+		"LeanRight3",
+		"LeanRight2",
+		"LeanRight1",
+		"Straight",
+		"Jump",
+		"Straight",
+		"LeanRight1",
+		"Jump",
+		];
 
 function drawPlayers()
 {
-	var sprite = objects.skier1.sprites[0];
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n],
+			s = p.sprite[indexFactor*dbgAngle | 0];
 
-	ctx.drawImage(
-		sprite,
-		playerX-sprite.centerX,
-		playerY-sprite.centerY );
+		ctx.drawImage(
+			s,
+			p.x-s.centerX,
+			p.y-s.centerY );
+
+ctx.setTransform( -1, 0, 0, -1, 0, 0 );
+ctx.drawImage(
+	s,
+	p.x-s.centerX-width,
+	p.y-s.centerY-height );
+ctx.setTransform( 1, 0, 0, 1, 0, 0 );
+	}
+
+	// DEBUG
+	dbgAngle += .001;
+	if( dbgAngle > 6.2831 )
+		dbgAngle -= 6.2831;
+
+	if( ++dbgFrame > 20 )
+	{
+		dbgFrame = 0;
+
+		if( ++dbgSprite >= dbgSprites.length )
+			dbgSprite = 0;
+
+		for( var n = playersLength; n--; )
+		{
+			var p = players[n];
+
+			p.sprite = sprites[
+				(n & 1 ?  "skierBlue" : "skierYellow")+
+				dbgSprites[dbgSprite]];
+		}
+	}
+}
+
+function drawObjects()
+{
+	for( var n = objectsLength; n--; )
+	{
+		var o = objects[n],
+			s = o.sprite;
+
+		ctx.drawImage(
+			s,
+			o.x-s.centerX,
+			o.y-s.centerY );
+
+ctx.setTransform( -1, 0, 0, -1, 0, 0 );
+ctx.drawImage(
+	s,
+	o.x-s.centerX-width,
+	o.y-s.centerY-height );
+ctx.setTransform( 1, 0, 0, 1, 0, 0 );
+	}
 }
 
 function draw()
 {
 	ctx.clearRect( 0, 0, width, height );
 
-	var bottom = centerY+playerY;
-
+	drawObjects();
 	drawPlayers();
+}
+
+function ski()
+{
 }
 
 function run( now )
 {
+	now = now || new Date().getTime();
 	factor = 16/(now-last);
 	last = now;
 
+	ski();
 	draw();
 
 	requestAnimFrame( run );
@@ -121,9 +182,9 @@ function setPointers( ev )
 
 	if( e.touches )
 	{
-		pointers = e.touches.length;
+		pointerLength = e.touches.length;
 
-		for( var n = 0; n < pointers; ++n )
+		for( var n = 0; n < pointerLength; ++n )
 		{
 			var t = e.touches[n];
 
@@ -135,19 +196,19 @@ function setPointers( ev )
 	{
 		pointerX[0] = e.clientX;
 		pointerY[0] = e.clientY;
-		pointers = 1;
+		pointerLength = 1;
 	}
 	else if( typeof e.pageX !== "undefined" )
 	{
 		pointerX[0] = e.pageX;
 		pointerY[0] = e.pageY;
-		pointers = 1;
+		pointerLength = 1;
 	}
 }
 
 function pointerUp( ev )
 {
-	pointerSet = false;
+	pointerLength = 0;
 
 	ev.preventDefault();
 	return false;
@@ -155,7 +216,7 @@ function pointerUp( ev )
 
 function pointerMove( ev )
 {
-	if( pointerSet )
+	if( pointerLength )
 		setPointers( ev );
 
 	ev.preventDefault();
@@ -164,7 +225,7 @@ function pointerMove( ev )
 
 function pointerDown( ev )
 {
-	pointerSet = true;
+	setPointers( ev );
 
 	ev.preventDefault();
 	return false;
@@ -172,13 +233,115 @@ function pointerDown( ev )
 
 function reset()
 {
-	playerX = centerX;
-	playerY = centerY*1.5 | 0;
+	var cell = width/playersLength,
+		x = cell >> 1,
+		y = centerY*1.75 | 0;
+
+	for( var n = playersLength; n--; x += cell )
+		players[n] = {
+			x: x,
+			y: y,
+			sprite: sprites[
+				n & 1 ?
+				"skierBlueStraight" :
+				"skierYellowStraight"] };
+
+	for( var n = objectsLength; n--; )
+		objects[n] = {
+			x: Math.random()*width | 0,
+			y: centerY+(Math.random()*centerY | 0),
+			sprite: sprites.tree
+		};
 }
 
 function scale( styleWidth )
 {
-	var ref = objects.hump.res[0].w,
+	var frames = {
+			skierBlueStraight: {
+				rotate: true,
+				frame: {/*skier-blue-straight*/x:121,y:335,w:25,h:54}
+			},
+			skierBlueJump: {
+				rotate: true,
+				frame: {/*skier-blue-jump*/x:48,y:335,w:48,h:54}
+			},
+			skierBlueLeanLeft1: {
+				rotate: true,
+				frame: {/*skier-blue-lean1-left*/x:208,y:256,w:24,h:59}
+			},
+			skierBlueLeanLeft2: {
+				rotate: true,
+				frame: {/*skier-blue-lean2-left*/x:92,y:256,w:32,h:64}
+			},
+			skierBlueLeanLeft3: {
+				rotate: true,
+				frame: {/*skier-blue-lean3-left*/x:154,y:256,w:30,h:63}
+			},
+			skierBlueLeanRight1: {
+				mirror: true,
+				rotate: true,
+				frame: {/*skier-blue-lean1-left*/x:208,y:256,w:24,h:59}
+			},
+			skierBlueLeanRight2: {
+				mirror: true,
+				rotate: true,
+				frame: {/*skier-blue-lean2-left*/x:92,y:256,w:32,h:64}
+			},
+			skierBlueLeanRight3: {
+				mirror: true,
+				rotate: true,
+				frame: {/*skier-blue-lean3-left*/x:154,y:256,w:30,h:63}
+			},
+			skierBlueCrashed: {
+				frame: {/*skier-blue-crashed*/x:178,y:335,w:32,h:42}
+			},
+			skierYellowStraight: {
+				rotate: true,
+				frame: {/*skier-yellow-straight*/x:96,y:335,w:25,h:54}
+			},
+			skierYellowJump: {
+				rotate: true,
+				frame: {/*skier-yellow-jump*/x:0,y:335,w:48,h:54}
+			},
+			skierYellowLeanLeft1: {
+				rotate: true,
+				frame: {/*skier-yellow-lean1-left*/x:184,y:256,w:24,h:59}
+			},
+			skierYellowLeanLeft2: {
+				rotate: true,
+				frame: {/*skier-yellow-lean2-left*/x:60,y:256,w:32,h:64}
+			},
+			skierYellowLeanLeft3: {
+				rotate: true,
+				frame: {/*skier-yellow-lean3-left*/x:124,y:256,w:30,h:63}
+			},
+			skierYellowLeanRight1: {
+				mirror: true,
+				rotate: true,
+				frame: {/*skier-yellow-lean1-left*/x:184,y:256,w:24,h:59}
+			},
+			skierYellowLeanRight2: {
+				mirror: true,
+				rotate: true,
+				frame: {/*skier-yellow-lean2-left*/x:60,y:256,w:32,h:64}
+			},
+			skierYellowLeanRight3: {
+				mirror: true,
+				rotate: true,
+				frame: {/*skier-yellow-lean3-left*/x:124,y:256,w:30,h:63}
+			},
+			skierYellowCrashed: {
+				frame: {/*skier-yellow-crashed*/x:146,y:335,w:32,h:42}
+			},
+			tree: {
+				frame: {/*tree*/x:0,y:256,w:60,h:79}
+			},
+			hump: {
+				frame: {/*hump*/x:0,y:0,w:256,h:256}
+			}
+		},
+		ref = frames.hump.frame.w,
+		step = Math.PI*2/orientationsLength,
 		scale;
 
 	if( styleWidth >= ref )
@@ -186,50 +349,84 @@ function scale( styleWidth )
 	else
 		scale = width/ref;
 
-	for( var name in objects )
+	sprites = {};
+
+	for( var name in frames )
 	{
-		var o = objects[name],
-			res = o.res;
+		var sprite = frames[name],
+			f = sprite.frame,
+			w = f.w*scale | 0,
+			h = f.h*scale | 0;
 
-		o.sprites = [];
-
-		for( var n = res.length; n--; )
+		if( sprite.rotate )
 		{
-			var r = res[n],
-				c = document.createElement( "canvas" ),
-				x = c.getContext( "2d" ),
-				w = r.w*scale | 0,
-				h = r.h*scale | 0;
+			var size = Math.max( w, h )*scale | 0,
+				center = size >> 1,
+				a = [];
+
+			for( var o = orientationsLength; o--; )
+			{
+				var c = document.createElement( "canvas" ),
+					x = c.getContext( "2d" ),
+					angle = o*step;
+
+				c.width = size;
+				c.height = size;
+
+				c.centerX = center;
+				c.centerY = center;
+
+				if( sprite.mirror )
+				{
+					x.setTransform( -1, 0, 0, 1, 0, 0 );
+					x.translate( -center, center );
+					x.rotate( -angle );
+				}
+				else
+				{
+					x.translate( center, center );
+					x.rotate( angle );
+				}
+
+				x.drawImage(
+					atlas,
+					f.x,
+					f.y,
+					f.w,
+					f.h,
+					-w >> 1,
+					-h >> 1,
+					w,
+					h );
+
+				a[o] = c;
+			}
+
+			sprites[name] = a;
+		}
+		else
+		{
+			var c = document.createElement( "canvas" ),
+				x = c.getContext( "2d" );
 
 			c.width = w;
 			c.height = h;
+
 			c.centerX = w >> 1;
 			c.centerY = h >> 1;
 
 			x.drawImage(
 				atlas,
-				r.x,
-				r.y,
-				r.w,
-				r.h,
+				f.x,
+				f.y,
+				f.w,
+				f.h,
 				0,
 				0,
 				w,
 				h );
 
-			o.sprites[n] = c;
-		}
-
-		if( o.rotate )
-		{
-			// 0  - 10: idx 0
-			// 10 - 20: idx 1
-			// 20 - 30: idx 2
-			// 30 -   : idx 3
-
-			//x.setTransform( -1, 0, 0, 1, 0, 0 );
-			//for( 0 to -180 )
-
+			sprites[name] = c;
 		}
 	}
 }
@@ -297,7 +494,6 @@ function init()
 	}
 
 stats();
-
 	last = new Date().getTime()-16;
 	run();
 }
