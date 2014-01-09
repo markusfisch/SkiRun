@@ -1,5 +1,5 @@
 OBJECTS = *.html *.png
-PRODUCTION = hhsw.de@ssh.strato.de:sites/Ski
+PRODUCTION = hhsw.de@ssh.strato.de:sites/proto/2ski
 OPTIONS = \
 	--recursive \
 	--update \
