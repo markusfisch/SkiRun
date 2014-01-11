@@ -59,7 +59,7 @@ var atlas,
 	factor,
 	playersLength = 2,
 	players = [],
-	objectsLength = 20,
+	objectsLength = 2,
 	objects = [],
 	sprites = {},
 	orientationsLength = 36,
@@ -101,20 +101,27 @@ function drawPlayers()
 			p.x-s.centerX,
 			p.y-s.centerY );
 
-ctx.setTransform( -1, 0, 0, -1, 0, 0 );
+/*ctx.setTransform( -1, 0, 0, -1, 0, 0 );
 ctx.drawImage(
 	s,
 	p.x-s.centerX-width,
 	p.y-s.centerY-height );
-ctx.setTransform( 1, 0, 0, 1, 0, 0 );
+ctx.setTransform( 1, 0, 0, 1, 0, 0 );*/
+		var a = (dbgAngle+Math.PI) % (Math.PI*2),
+			yan = p.sprite[indexFactor*a | 0];
+
+		ctx.drawImage(
+			yan,
+			p.x-yan.centerX,
+			(height-p.y)-yan.centerY );
 	}
 
 	// DEBUG
-	dbgAngle += .001;
+	dbgAngle += .01;
 	if( dbgAngle > 6.2831 )
 		dbgAngle -= 6.2831;
 
-	if( ++dbgFrame > 20 )
+	if( ++dbgFrame > 5 )
 	{
 		dbgFrame = 0;
 
@@ -144,12 +151,18 @@ function drawObjects()
 			o.x-s.centerX,
 			o.y-s.centerY );
 
-ctx.setTransform( -1, 0, 0, -1, 0, 0 );
+/*ctx.setTransform( -1, 0, 0, -1, 0, 0 );
 ctx.drawImage(
 	s,
 	o.x-s.centerX-width,
 	o.y-s.centerY-height );
-ctx.setTransform( 1, 0, 0, 1, 0, 0 );
+ctx.setTransform( 1, 0, 0, 1, 0, 0 );*/
+
+		s = sprites.treeUpsideDown;
+		ctx.drawImage(
+			s,
+			o.x-s.centerX,
+			(height-o.y)-s.centerY );
 	}
 }
 
@@ -337,6 +350,10 @@ function scale( styleWidth )
 			tree: {
 				frame: {/*tree*/x:0,y:256,w:60,h:79}
 			},
+			treeUpsideDown: {
+				upsideDown: true,
+				frame: {/*tree*/x:0,y:256,w:60,h:79}
+			},
 			hump: {
 				frame: {/*hump*/x:0,y:0,w:256,h:256}
 			}
@@ -383,6 +400,12 @@ function scale( styleWidth )
 					x.translate( -center, center );
 					x.rotate( -angle );
 				}
+				else if( sprite.upsideDown )
+				{
+					x.setTransform( -1, 0, 0, -1, 0, 0 );
+					x.translate( -center, -center );
+					x.rotate( -angle );
+				}
 				else
 				{
 					x.translate( center, center );
@@ -415,6 +438,18 @@ function scale( styleWidth )
 
 			c.centerX = w >> 1;
 			c.centerY = h >> 1;
+
+			if( sprite.mirror )
+			{
+				x.setTransform( -1, 0, 0, 1, 0, 0 );
+				w = -w;
+			}
+			else if( sprite.upsideDown )
+			{
+				x.setTransform( -1, 0, 0, -1, 0, 0 );
+				w = -w;
+				h = -h;
+			}
 
 			x.drawImage(
 				atlas,
