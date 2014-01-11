@@ -13,9 +13,13 @@ body
 	overflow: hidden;
 }
 
+canvas
+{
+	position: fixed;
+}
+
 </style>
 <body>
-<canvas id="Ski">Sorry, can't run in this setup.</canvas>
 <script>
 
 "use strict";
@@ -45,9 +49,12 @@ window.requestAnimFrame =
 	};
 
 var atlas,
-	canvas,
-	ctx,
+	canvas1,
+	canvas2,
+	ctx1,
+	ctx2,
 	ratio,
+	upsideDown,
 	width,
 	height,
 	centerX,
@@ -59,7 +66,7 @@ var atlas,
 	factor,
 	playersLength = 2,
 	players = [],
-	objectsLength = 2,
+	objectsLength = 20,
 	objects = [],
 	sprites = {},
 	orientationsLength = 36,
@@ -94,26 +101,21 @@ function drawPlayers()
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			s = p.sprite[indexFactor*dbgAngle | 0];
+			s = p.sprite[indexFactor*dbgAngle | 0],
+			x = p.x-s.centerX,
+			y = p.y-s.centerY;
 
-		ctx.drawImage(
-			s,
-			p.x-s.centerX,
-			p.y-s.centerY );
+		ctx2.drawImage( s, x, y );
 
-/*ctx.setTransform( -1, 0, 0, -1, 0, 0 );
-ctx.drawImage(
-	s,
-	p.x-s.centerX-width,
-	p.y-s.centerY-height );
-ctx.setTransform( 1, 0, 0, 1, 0, 0 );*/
-		var a = (dbgAngle+Math.PI) % (Math.PI*2),
-			yan = p.sprite[indexFactor*a | 0];
+		if( upsideDown )
+		{
+			var a = (dbgAngle+Math.PI) % (Math.PI*2);
 
-		ctx.drawImage(
-			yan,
-			p.x-yan.centerX,
-			(height-p.y)-yan.centerY );
+			s = p.sprite[indexFactor*a | 0];
+			y = height-y;
+		}
+
+		ctx1.drawImage( s, x, y );
 	}
 
 	// DEBUG
@@ -144,31 +146,28 @@ function drawObjects()
 	for( var n = objectsLength; n--; )
 	{
 		var o = objects[n],
-			s = o.sprite;
+			s = o.sprite,
+			x = o.x-s.centerX,
+			y = o.y-s.centerY;
 
-		ctx.drawImage(
-			s,
-			o.x-s.centerX,
-			o.y-s.centerY );
+		ctx2.drawImage( s, x, y );
 
-/*ctx.setTransform( -1, 0, 0, -1, 0, 0 );
-ctx.drawImage(
-	s,
-	o.x-s.centerX-width,
-	o.y-s.centerY-height );
-ctx.setTransform( 1, 0, 0, 1, 0, 0 );*/
+		if( upsideDown )
+		{
+			s = sprites.treeUpsideDown;
+			y = height-y;
+		}
 
-		s = sprites.treeUpsideDown;
-		ctx.drawImage(
-			s,
-			o.x-s.centerX,
-			(height-o.y)-s.centerY );
+		ctx1.drawImage( s, x, y );
 	}
 }
 
 function draw()
 {
-	ctx.clearRect( 0, 0, width, height );
+	ctx1.clearRect( 0, 0, width, height );
+
+	ctx2.fillStyle = "#c5e6ef";
+	ctx2.fillRect( 0, 0, width, height );
 
 	drawObjects();
 	drawPlayers();
@@ -263,7 +262,7 @@ function reset()
 	for( var n = objectsLength; n--; )
 		objects[n] = {
 			x: Math.random()*width | 0,
-			y: centerY+(Math.random()*centerY | 0),
+			y: Math.random()*height | 0,
 			sprite: sprites.tree
 		};
 }
@@ -472,17 +471,30 @@ function resize()
 	var w = window.innerWidth,
 		h = window.innerHeight;
 
+	if( w > h )
+	{
+		w >>= 1;
+		canvas2.style.left = w+"px";
+		canvas2.style.top = "0px";
+	}
+	else
+	{
+		h >>= 1;
+		canvas2.style.left = "0px";
+		canvas2.style.top = h+"px";
+	}
+
 	width = w*ratio | 0;
 	height = h*ratio | 0;
 
 	centerX = width >> 1;
 	centerY = height >> 1;
 
-	canvas.width = width;
-	canvas.height = height;
+	canvas1.width = canvas2.width = width;
+	canvas1.height = canvas2.height = height;
 
-	canvas.style.width = w+"px";
-	canvas.style.height = h+"px";
+	canvas1.style.width = canvas2.style.width = w+"px";
+	canvas1.style.height = canvas2.style.height = h+"px";
 
 	scale( w );
 	reset();
@@ -502,32 +514,40 @@ function init()
 		return;
 	}
 
-	if( !(canvas = document.getElementById( "Ski" )) ||
-		!(ctx = canvas.getContext( "2d" )) )
+	if( !(canvas1 = document.createElement( "canvas" )) ||
+		!(ctx1 = canvas1.getContext( "2d" )) ||
+		!(canvas2 = document.createElement( "canvas" )) ||
+		!(ctx2 = canvas2.getContext( "2d" )) )
 		return;
 
 	ratio =
 		(window.devicePixelRatio || 1)/
-		(ctx.webkitBackingStorePixelRatio ||
-			ctx.mozBackingStorePixelRatio ||
-			ctx.msBackingStorePixelRatio ||
-			ctx.oBackingStorePixelRatio ||
-			ctx.backingStorePixelRatio ||
+		(ctx1.webkitBackingStorePixelRatio ||
+			ctx1.mozBackingStorePixelRatio ||
+			ctx1.msBackingStorePixelRatio ||
+			ctx1.oBackingStorePixelRatio ||
+			ctx1.backingStorePixelRatio ||
 			1);
+
+	upsideDown = navigator.userAgent.match(
+		/ipad|iphone|ipod|android|blackberry|webos/i );
 
 	window.onresize = resize;
 	resize();
 
-	canvas.onmousedown = pointerDown;
-	canvas.onmousemove = pointerMove;
-	canvas.onmouseup = pointerUp;
+	canvas1.onmousedown = canvas2.onmousedown = pointerDown;
+	canvas1.onmousemove = canvas2.onmousemove = pointerMove;
+	canvas1.onmouseup = canvas2.onmouseup = pointerUp;
 
-	if( "ontouchstart" in canvas )
+	if( "ontouchstart" in canvas1 )
 	{
-		canvas.ontouchstart = pointerDown;
-		canvas.ontouchmove = pointerMove;
-		canvas.ontouchend = pointerUp;
+		canvas1.ontouchstart = canvas2.ontouchstart = pointerDown;
+		canvas1.ontouchmove = canvas2.ontouchmove = pointerMove;
+		canvas1.ontouchend = canvas2.ontouchend = pointerUp;
 	}
+
+	document.body.appendChild( canvas1 );
+	document.body.appendChild( canvas2 );
 
 stats();
 	last = new Date().getTime()-16;
