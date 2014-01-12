@@ -112,7 +112,7 @@ function drawPlayers()
 			var a = (dbgAngle+Math.PI) % (Math.PI*2);
 
 			s = p.sprite[indexFactor*a | 0];
-			y = height-y;
+			y = height-p.y-s.centerY;
 		}
 
 		ctx1.drawImage( s, x, y );
@@ -151,11 +151,24 @@ function drawObjects()
 			y = o.y-s.centerY;
 
 		ctx2.drawImage( s, x, y );
+	}
+
+	for( var n = objectsLength; n--; )
+	{
+		var o = objects[n],
+			s,
+			x = o.x-s.centerX,
+			y;
 
 		if( upsideDown )
 		{
 			s = sprites.treeUpsideDown;
-			y = height-y;
+			y = height-o.y-s.centerY;
+		}
+		else
+		{
+			s = o.sprite;
+			y = o.y-s.centerY;
 		}
 
 		ctx1.drawImage( s, x, y );
@@ -259,12 +272,36 @@ function reset()
 				"skierBlueStraight" :
 				"skierYellowStraight"] };
 
+	var sw = sprites.tree.width,
+		sh = sprites.tree.height,
+		w = sw*1.5 | 0,
+		h = sh*1.5 | 0,
+		rx = sw*.5 | 0,
+		ry = sh*.5 | 0,
+		cols = width/w | 0,
+		rows = height/h | 0,
+		map = [];
+
 	for( var n = objectsLength; n--; )
-		objects[n] = {
-			x: Math.random()*width | 0,
-			y: Math.random()*height | 0,
-			sprite: sprites.tree
-		};
+		for( ;; )
+		{
+			var x = Math.random()*(cols-1) | 0,
+				y = Math.random()*(rows-1) | 0,
+				offset = y*cols+x;
+
+			if( map[offset] != 1 )
+			{
+				map[offset] = 1;
+
+				objects[n] = {
+					x: x*w+(Math.random()*rx | 0),
+					y: y*h+(Math.random()*ry | 0),
+					sprite: sprites.tree
+				};
+
+				break;
+			}
+		}
 }
 
 function scale( styleWidth )
@@ -430,7 +467,9 @@ function scale( styleWidth )
 		else
 		{
 			var c = document.createElement( "canvas" ),
-				x = c.getContext( "2d" );
+				x = c.getContext( "2d" ),
+				l = 0,
+				t = 0;
 
 			c.width = w;
 			c.height = h;
@@ -441,13 +480,13 @@ function scale( styleWidth )
 			if( sprite.mirror )
 			{
 				x.setTransform( -1, 0, 0, 1, 0, 0 );
-				w = -w;
+				l = -w;
 			}
 			else if( sprite.upsideDown )
 			{
 				x.setTransform( -1, 0, 0, -1, 0, 0 );
-				w = -w;
-				h = -h;
+				l = -w;
+				t = -h;
 			}
 
 			x.drawImage(
@@ -456,8 +495,8 @@ function scale( styleWidth )
 				f.y,
 				f.w,
 				f.h,
-				0,
-				0,
+				l,
+				t,
 				w,
 				h );
 
@@ -531,6 +570,7 @@ function init()
 
 	upsideDown = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|blackberry|webos/i );
+upsideDown = true;
 
 	window.onresize = resize;
 	resize();
