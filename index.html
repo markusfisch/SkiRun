@@ -57,8 +57,8 @@ var atlas,
 	upsideDown,
 	width,
 	height,
-	centerX,
-	centerY,
+	mapWidth,
+	mapHeight,
 	pointerLength = 0,
 	pointerX = [],
 	pointerY = [],
@@ -261,7 +261,7 @@ function reset()
 {
 	var cell = width/playersLength,
 		x = cell >> 1,
-		y = centerY*1.75 | 0;
+		y = height*.9 | 0;
 
 	for( var n = playersLength; n--; x += cell )
 		players[n] = {
@@ -272,36 +272,20 @@ function reset()
 				"skierBlueStraight" :
 				"skierYellowStraight"] };
 
-	var sw = sprites.tree.width,
-		sh = sprites.tree.height,
-		w = sw*1.5 | 0,
-		h = sh*1.5 | 0,
-		rx = sw*.5 | 0,
-		ry = sh*.5 | 0,
-		cols = width/w | 0,
-		rows = height/h | 0,
-		map = [];
+	mapWidth = width;
+	mapHeight = height;
 
-	for( var n = objectsLength; n--; )
-		for( ;; )
-		{
-			var x = Math.random()*(cols-1) | 0,
-				y = Math.random()*(rows-1) | 0,
-				offset = y*cols+x;
+	for( var n = objectsLength, y = 0;
+		n--;
+		y += Math.random()*.1 )
+	{
+		var x = Math.random();
 
-			if( map[offset] != 1 )
-			{
-				map[offset] = 1;
-
-				objects[n] = {
-					x: x*w+(Math.random()*rx | 0),
-					y: y*h+(Math.random()*ry | 0),
-					sprite: sprites.tree
-				};
-
-				break;
-			}
-		}
+		objects[n] = {
+			x: (n % 2 ? (x < .5 ? 0 : .9)+x*.1 : x)*mapWidth | 0,
+			y: y*mapHeight | 0,
+			sprite: sprites.tree };
+	}
 }
 
 function scale( styleWidth )
@@ -309,99 +293,101 @@ function scale( styleWidth )
 	var frames = {
 			skierBlueStraight: {
 				rotate: true,
-				frame: {/*skier-blue-straight*/x:121,y:335,w:25,h:54}
+				frame: {/*skier-blue-straight*/x:135,y:345,w:25,h:54}
 			},
 			skierBlueJump: {
 				rotate: true,
-				frame: {/*skier-blue-jump*/x:48,y:335,w:48,h:54}
+				frame: {/*skier-blue-jump*/x:54,y:345,w:48,h:54}
 			},
 			skierBlueLeanLeft1: {
 				rotate: true,
-				frame: {/*skier-blue-lean1-left*/x:208,y:256,w:24,h:59}
+				frame: {/*skier-blue-lean1-left*/x:234,y:262,w:24,h:59}
 			},
 			skierBlueLeanLeft2: {
 				rotate: true,
-				frame: {/*skier-blue-lean2-left*/x:92,y:256,w:32,h:64}
+				frame: {/*skier-blue-lean2-left*/x:102,y:262,w:32,h:64}
 			},
 			skierBlueLeanLeft3: {
 				rotate: true,
-				frame: {/*skier-blue-lean3-left*/x:154,y:256,w:30,h:63}
+				frame: {/*skier-blue-lean3-left*/x:172,y:262,w:30,h:63}
 			},
 			skierBlueLeanRight1: {
 				mirror: true,
 				rotate: true,
-				frame: {/*skier-blue-lean1-left*/x:208,y:256,w:24,h:59}
+				frame: {/*skier-blue-lean1-left*/x:234,y:262,w:24,h:59}
 			},
 			skierBlueLeanRight2: {
 				mirror: true,
 				rotate: true,
-				frame: {/*skier-blue-lean2-left*/x:92,y:256,w:32,h:64}
+				frame: {/*skier-blue-lean2-left*/x:102,y:262,w:32,h:64}
 			},
 			skierBlueLeanRight3: {
 				mirror: true,
 				rotate: true,
-				frame: {/*skier-blue-lean3-left*/x:154,y:256,w:30,h:63}
+				frame: {/*skier-blue-lean3-left*/x:172,y:262,w:30,h:63}
 			},
 			skierBlueCrashed: {
-				frame: {/*skier-blue-crashed*/x:178,y:335,w:32,h:42}
+				frame: {/*skier-blue-crashed*/x:200,y:345,w:32,h:42}
 			},
 			skierYellowStraight: {
 				rotate: true,
-				frame: {/*skier-yellow-straight*/x:96,y:335,w:25,h:54}
+				frame: {/*skier-yellow-straight*/x:106,y:345,w:25,h:54}
 			},
 			skierYellowJump: {
 				rotate: true,
-				frame: {/*skier-yellow-jump*/x:0,y:335,w:48,h:54}
+				frame: {/*skier-yellow-jump*/x:2,y:345,w:48,h:54}
 			},
 			skierYellowLeanLeft1: {
 				rotate: true,
-				frame: {/*skier-yellow-lean1-left*/x:184,y:256,w:24,h:59}
+				frame: {/*skier-yellow-lean1-left*/x:206,y:262,w:24,h:59}
 			},
 			skierYellowLeanLeft2: {
 				rotate: true,
-				frame: {/*skier-yellow-lean2-left*/x:60,y:256,w:32,h:64}
+				frame: {/*skier-yellow-lean2-left*/x:66,y:262,w:32,h:64}
 			},
 			skierYellowLeanLeft3: {
 				rotate: true,
-				frame: {/*skier-yellow-lean3-left*/x:124,y:256,w:30,h:63}
+				frame: {/*skier-yellow-lean3-left*/x:138,y:262,w:30,h:63}
 			},
 			skierYellowLeanRight1: {
 				mirror: true,
 				rotate: true,
-				frame: {/*skier-yellow-lean1-left*/x:184,y:256,w:24,h:59}
+				frame: {/*skier-yellow-lean1-left*/x:206,y:262,w:24,h:59}
 			},
 			skierYellowLeanRight2: {
 				mirror: true,
 				rotate: true,
-				frame: {/*skier-yellow-lean2-left*/x:60,y:256,w:32,h:64}
+				frame: {/*skier-yellow-lean2-left*/x:66,y:262,w:32,h:64}
 			},
 			skierYellowLeanRight3: {
 				mirror: true,
 				rotate: true,
-				frame: {/*skier-yellow-lean3-left*/x:124,y:256,w:30,h:63}
+				frame: {/*skier-yellow-lean3-left*/x:138,y:262,w:30,h:63}
 			},
 			skierYellowCrashed: {
-				frame: {/*skier-yellow-crashed*/x:146,y:335,w:32,h:42}
+				frame: {/*skier-yellow-crashed*/x:164,y:345,w:32,h:42}
 			},
 			tree: {
-				frame: {/*tree*/x:0,y:256,w:60,h:79}
+				frame: {/*tree*/x:2,y:262,w:60,h:79}
 			},
 			treeUpsideDown: {
 				upsideDown: true,
-				frame: {/*tree*/x:0,y:256,w:60,h:79}
+				frame: {/*tree*/x:2,y:262,w:60,h:79}
 			},
 			hump: {
-				frame: {/*hump*/x:0,y:0,w:256,h:256}
+				frame: {/*hump*/x:2,y:2,w:256,h:256}
 			}
 		},
-		ref = frames.hump.frame.w,
 		step = Math.PI*2/orientationsLength,
-		scale;
+		/*ref = frames.skierBlueStraight.frame.w,
+		target = styleWidth*.05 | 0,
+		scale;*/
+		scale = width*.05/frames.skierBlueStraight.frame.w;
 
-	if( styleWidth >= ref )
+	/*if( target >= ref )
 		scale = 1;
 	else
-		scale = width/ref;
+		scale = target/ref;*/
 
 	sprites = {};
 
@@ -526,9 +512,6 @@ function resize()
 	width = w*ratio | 0;
 	height = h*ratio | 0;
 
-	centerX = width >> 1;
-	centerY = height >> 1;
-
 	canvas1.width = canvas2.width = width;
 	canvas1.height = canvas2.height = height;
 
@@ -570,7 +553,6 @@ function init()
 
 	upsideDown = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|blackberry|webos/i );
-upsideDown = true;
 
 	window.onresize = resize;
 	resize();
