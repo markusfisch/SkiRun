@@ -48,146 +48,159 @@ window.requestAnimFrame =
 			16 );
 	};
 
-var atlas,
-	canvas1,
-	canvas2,
-	ctx1,
-	ctx2,
+Math.TAU = Math.TAU || Math.PI*2;
+
+var playersLength = 2,
+	players = [],
+	atlas,
 	ratio,
-	upsideDown,
 	width,
 	height,
-	mapWidth,
-	mapHeight,
+	centerX,
+	centerY,
 	pointerLength = 0,
 	pointerX = [],
 	pointerY = [],
+	keysDown = [],
 	last,
 	factor,
-	playersLength = 2,
-	players = [],
-	objectsLength = 20,
+	objectsLength,
 	objects = [],
 	sprites = {},
+	mobile = navigator.userAgent.match(
+		/ipad|iphone|ipod|android|blackberry|webos/i ),
 	orientationsLength = 36,
-	indexFactor = orientationsLength/2/Math.PI;
+	indexFactor = orientationsLength/2/Math.PI,
+	slopeWidth,
+	slopeHeight;
 
-// DEBUG
-var dbgAngle = 0,
-	dbgFrame = 0,
-	dbgSprite = 0,
-	dbgSprites = [
-		"Straight",
-		"LeanLeft1",
-		"LeanLeft2",
-		"LeanLeft3",
-		"LeanLeft2",
-		"LeanLeft1",
-		"Straight",
-		"LeanRight1",
-		"LeanRight2",
-		"LeanRight3",
-		"LeanRight2",
-		"LeanRight1",
-		"Straight",
-		"Jump",
-		"Straight",
-		"LeanRight1",
-		"Jump",
-		];
-
-function drawPlayers()
+function drawPlayers( ctx, left, top, upsideDown )
 {
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			s = p.sprite[indexFactor*dbgAngle | 0],
-			x = p.x-s.centerX,
-			y = p.y-s.centerY;
-
-		ctx2.drawImage( s, x, y );
+			heading = p.heading,
+			x = p.x-left,
+			y = p.y-top;
 
 		if( upsideDown )
 		{
-			var a = (dbgAngle+Math.PI) % (Math.PI*2);
-
-			s = p.sprite[indexFactor*a | 0];
-			y = height-p.y-s.centerY;
+			heading = (heading+Math.PI) % (Math.TAU);
+			y = height-y;
 		}
 
-		ctx1.drawImage( s, x, y );
-	}
+		var sprite = p.sprite[indexFactor*heading | 0];
 
-	// DEBUG
-	dbgAngle += .01;
-	if( dbgAngle > 6.2831 )
-		dbgAngle -= 6.2831;
+		x -= sprite.centerX;
+		y -= sprite.centerY;
 
-	if( ++dbgFrame > 5 )
-	{
-		dbgFrame = 0;
-
-		if( ++dbgSprite >= dbgSprites.length )
-			dbgSprite = 0;
-
-		for( var n = playersLength; n--; )
-		{
-			var p = players[n];
-
-			p.sprite = sprites[
-				(n & 1 ?  "skierBlue" : "skierYellow")+
-				dbgSprites[dbgSprite]];
-		}
+		ctx.drawImage( sprite, x, y );
 	}
 }
 
-function drawObjects()
+function drawObjects( ctx, left, top, upsideDown )
 {
 	for( var n = objectsLength; n--; )
 	{
 		var o = objects[n],
-			s = o.sprite,
-			x = o.x-s.centerX,
-			y = o.y-s.centerY;
-
-		ctx2.drawImage( s, x, y );
-	}
-
-	for( var n = objectsLength; n--; )
-	{
-		var o = objects[n],
-			s,
-			x = o.x-s.centerX,
-			y;
+			x = o.x-left,
+			y = o.y-top,
+			sprite;
 
 		if( upsideDown )
 		{
-			s = sprites.treeUpsideDown;
-			y = height-o.y-s.centerY;
+			sprite = sprites.treeUpsideDown;
+			y = height-y;
 		}
 		else
-		{
-			s = o.sprite;
-			y = o.y-s.centerY;
-		}
+			sprite = sprites.tree;
 
-		ctx1.drawImage( s, x, y );
+		x -= sprite.centerX;
+		y -= sprite.centerY;
+
+		ctx.drawImage( sprite, x, y );
 	}
 }
 
 function draw()
 {
-	ctx1.clearRect( 0, 0, width, height );
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n],
+			ctx = p.ctx,
+			upsideDown = p.upsideDown,
+			x = p.x,
+			y = p.y,
+			left = x-centerX,
+			top = y-centerY,
+			right = x+centerX,
+			bottom = y+centerY;
 
-	ctx2.fillStyle = "#c5e6ef";
-	ctx2.fillRect( 0, 0, width, height );
+		if( left < 0 )
+		{
+			left = 0;
+			right = width;
+		}
+		else if( right > slopeWidth )
+		{
+			left = slopeWidth-width;
+			right = slopeWidth;
+		}
 
-	drawObjects();
-	drawPlayers();
+		if( top < 0 )
+		{
+			top = 0;
+			bottom = height;
+		}
+		else if( bottom > slopeHeight )
+		{
+			top = slopeHeight-height;
+			bottom = slopeHeight;
+		}
+
+		ctx.clearRect( 0, 0, width, height );
+
+		drawObjects( ctx, left, top, upsideDown );
+		drawPlayers( ctx, left, top, upsideDown );
+	}
+}
+
+function turn( player, mod )
+{
+	var h = player.heading;
+
+	h += mod;
+
+	if( h < 0 )
+		h += Math.TAU;
+	else if( h > Math.TAU )
+		h -= Math.TAU;
+
+	h %= Math.TAU;
+
+	player.heading = h;
 }
 
 function ski()
 {
+	if( keysDown[72] )
+		turn( players[0], -.1 );
+	else if( keysDown[76] )
+		turn( players[0], .1 );
+
+	if( keysDown[37] )
+		turn( players[1], -.1 );
+	else if( keysDown[39] )
+		turn( players[1], .1 );
+
+	for( var n = pointerLength; n--; )
+	{
+		var x = pointerX[n],
+			y = pointerY[n],
+			p = players[x/width | 0];
+
+		turn( p, -.1/centerX*(centerX-(x%width)) );
+	}
 }
 
 function run( now )
@@ -202,9 +215,14 @@ function run( now )
 	requestAnimFrame( run );
 }
 
-function setPointers( ev )
+function getEvent( ev )
 {
-	var e = ev || event;
+	return ev || event;
+}
+
+function setPointers( ev, set )
+{
+	var e = getEvent( ev );
 
 	if( e.touches )
 	{
@@ -230,61 +248,96 @@ function setPointers( ev )
 		pointerY[0] = e.pageY;
 		pointerLength = 1;
 	}
+
+	e.preventDefault();
+	return false;
 }
 
 function pointerUp( ev )
 {
 	pointerLength = 0;
 
-	ev.preventDefault();
+	getEvent( ev ).preventDefault();
 	return false;
 }
 
 function pointerMove( ev )
 {
 	if( pointerLength )
-		setPointers( ev );
+		return setPointers( ev );
 
-	ev.preventDefault();
+	getEvent( ev ).preventDefault();
 	return false;
 }
 
 function pointerDown( ev )
 {
-	setPointers( ev );
+	return setPointers( ev );
+}
 
-	ev.preventDefault();
+function setKey( ev, pressed )
+{
+	var e = getEvent( ev );
+
+	keysDown[e.keyCode] = pressed;
+
+	e.preventDefault();
 	return false;
+}
+
+function keyUp( ev )
+{
+	return setKey( ev, false );
+}
+
+function keyDown( ev )
+{
+	return setKey( ev, true );
 }
 
 function reset()
 {
-	var cell = width/playersLength,
-		x = cell >> 1,
-		y = height*.9 | 0;
+	var ref = sprites.skierBlueStraight[0],
+		rw = ref.width,
+		rh = ref.height;
 
-	for( var n = playersLength; n--; x += cell )
-		players[n] = {
-			x: x,
-			y: y,
-			sprite: sprites[
-				n & 1 ?
-				"skierBlueStraight" :
-				"skierYellowStraight"] };
+	slopeWidth = rw*playersLength*10;
+	slopeHeight = sprites.tree.height*20;
 
-	mapWidth = width;
-	mapHeight = height;
+	objectsLength = 0;
+	objects = [];
 
-	for( var n = objectsLength, y = 0;
-		n--;
-		y += Math.random()*.1 )
+	for( var y = 1-(1/slopeHeight*rh*4);
+		y > 0;
+		y -= Math.random()*.05, ++objectsLength )
 	{
 		var x = Math.random();
 
-		objects[n] = {
-			x: (n % 2 ? (x < .5 ? 0 : .9)+x*.1 : x)*mapWidth | 0,
-			y: y*mapHeight | 0,
+		objects[objectsLength] = {
+			x: (objectsLength % 2 ?
+				(x < .5 ? 0 : .9)+x*.1 :
+				x)*slopeWidth | 0,
+			y: y*slopeHeight | 0,
 			sprite: sprites.tree };
+	}
+
+	var cell = slopeWidth/playersLength,
+		x = cell >> 1,
+		y = slopeHeight-(rh << 1);
+
+	for( var n = 0;
+		n < playersLength;
+		++n, x += cell )
+	{
+		var p = players[n];
+
+		p.x = x;
+		p.y = y;
+		p.heading = 0;
+		p.sprite = sprites[
+			n & 1 ?
+			"skierYellowStraight" :
+			"skierBlueStraight"];
 	}
 }
 
@@ -378,16 +431,9 @@ function scale( styleWidth )
 				frame: {/*hump*/x:2,y:2,w:256,h:256}
 			}
 		},
-		step = Math.PI*2/orientationsLength,
-		/*ref = frames.skierBlueStraight.frame.w,
-		target = styleWidth*.05 | 0,
-		scale;*/
-		scale = width*.05/frames.skierBlueStraight.frame.w;
-
-	/*if( target >= ref )
-		scale = 1;
-	else
-		scale = target/ref;*/
+		step = Math.TAU/orientationsLength,
+		scale = Math.min( width, height )*.05/
+			frames.skierBlueStraight.frame.w;
 
 	sprites = {};
 
@@ -400,7 +446,7 @@ function scale( styleWidth )
 
 		if( sprite.rotate )
 		{
-			var size = Math.max( w, h )*scale | 0,
+			var size = Math.max( w, h ),
 				center = size >> 1,
 				a = [];
 
@@ -498,28 +544,87 @@ function resize()
 
 	if( w > h )
 	{
-		w >>= 1;
-		canvas2.style.left = w+"px";
-		canvas2.style.top = "0px";
+		w = w/playersLength | 0;
+
+		for( var n = 0, x = 0;
+			n < playersLength;
+			++n, x += w )
+		{
+			var s = players[n].canvas.style;
+
+			s.left = x+"px";
+			s.top = "0px";
+		}
 	}
 	else
 	{
-		h >>= 1;
-		canvas2.style.left = "0px";
-		canvas2.style.top = h+"px";
+		h = h/playersLength | 0;
+
+		for( var n = 0, y = 0;
+			n < playersLength;
+			++n, y += h )
+		{
+			var s = players[n].canvas.style;
+
+			s.left = "0px";
+			s.top = y+"px";
+		}
 	}
 
 	width = w*ratio | 0;
 	height = h*ratio | 0;
 
-	canvas1.width = canvas2.width = width;
-	canvas1.height = canvas2.height = height;
+	centerX = width >> 1;
+	centerY = height >> 1;
 
-	canvas1.style.width = canvas2.style.width = w+"px";
-	canvas1.style.height = canvas2.style.height = h+"px";
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n],
+			c = p.canvas;
+
+		c.width = width;
+		c.height = height;
+
+		c.style.width = w+"px";
+		c.style.height = h+"px";
+
+		p.upsideDown = mobile ? (n & 1 ? false : true) : false;
+	}
 
 	scale( w );
 	reset();
+}
+
+function create()
+{
+	var x;
+
+	for( var n = playersLength; n--; )
+	{
+		var c;
+
+		if( !(c = document.createElement( "canvas" )) ||
+			!(x = c.getContext( "2d" )) )
+			return;
+
+		c.playerIndex = n;
+
+		players[n] = {
+			canvas: c,
+			ctx: x,
+			pointerLength: 0,
+			pointerX: [],
+			pointerY: [] };
+	}
+
+	ratio =
+		(window.devicePixelRatio || 1)/
+		(x.webkitBackingStorePixelRatio ||
+			x.mozBackingStorePixelRatio ||
+			x.msBackingStorePixelRatio ||
+			x.oBackingStorePixelRatio ||
+			x.backingStorePixelRatio ||
+			1);
 }
 
 function init()
@@ -536,40 +641,29 @@ function init()
 		return;
 	}
 
-	if( !(canvas1 = document.createElement( "canvas" )) ||
-		!(ctx1 = canvas1.getContext( "2d" )) ||
-		!(canvas2 = document.createElement( "canvas" )) ||
-		!(ctx2 = canvas2.getContext( "2d" )) )
-		return;
-
-	ratio =
-		(window.devicePixelRatio || 1)/
-		(ctx1.webkitBackingStorePixelRatio ||
-			ctx1.mozBackingStorePixelRatio ||
-			ctx1.msBackingStorePixelRatio ||
-			ctx1.oBackingStorePixelRatio ||
-			ctx1.backingStorePixelRatio ||
-			1);
-
-	upsideDown = navigator.userAgent.match(
-		/ipad|iphone|ipod|android|blackberry|webos/i );
-
-	window.onresize = resize;
+	create();
 	resize();
 
-	canvas1.onmousedown = canvas2.onmousedown = pointerDown;
-	canvas1.onmousemove = canvas2.onmousemove = pointerMove;
-	canvas1.onmouseup = canvas2.onmouseup = pointerUp;
+	var e = document.body;
 
-	if( "ontouchstart" in canvas1 )
+	for( var n = playersLength; n--; )
+		e.appendChild( players[n].canvas );
+
+	window.onresize = resize;
+
+	e.onkeydown = keyDown;
+	e.onkeyup = keyUp;
+
+	e.onmousedown = pointerDown;
+	e.onmousemove = pointerMove;
+	e.onmouseup = pointerUp;
+
+	if( "ontouchstart" in e )
 	{
-		canvas1.ontouchstart = canvas2.ontouchstart = pointerDown;
-		canvas1.ontouchmove = canvas2.ontouchmove = pointerMove;
-		canvas1.ontouchend = canvas2.ontouchend = pointerUp;
+		e.ontouchstart = pointerDown;
+		e.ontouchmove = pointerMove;
+		e.ontouchend = pointerUp;
 	}
-
-	document.body.appendChild( canvas1 );
-	document.body.appendChild( canvas2 );
 
 stats();
 	last = new Date().getTime()-16;
