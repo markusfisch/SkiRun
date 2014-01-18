@@ -24,12 +24,6 @@ canvas
 
 "use strict";
 
-// Mr. Doob's Stats
-function stats()
-{
-var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);
-}
-
 // shim layer with setTimeout fallback
 // see http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 window.requestAnimFrame =
@@ -48,12 +42,14 @@ window.requestAnimFrame =
 			16 );
 	};
 
+Math.PI2 = Math.PI2 || Math.PI/2;
 Math.TAU = Math.TAU || Math.PI*2;
 
 var playersLength = 2,
 	players = [],
 	atlas,
 	ratio,
+	horizontal,
 	width,
 	height,
 	centerX,
@@ -70,7 +66,9 @@ var playersLength = 2,
 	mobile = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|blackberry|webos/i ),
 	orientationsLength = 36,
+	steepFactor = 1/Math.PI2,
 	indexFactor = orientationsLength/2/Math.PI,
+	maxSpeedFactor,
 	slopeWidth,
 	slopeHeight;
 
@@ -98,13 +96,18 @@ function drawPlayers( ctx, left, top, upsideDown )
 	}
 }
 
-function drawObjects( ctx, left, top, upsideDown )
+function drawObjects( ctx, left, top, upsideDown, player )
 {
+	var px = player.x,
+		py = player.y;
+
 	for( var n = objectsLength; n--; )
 	{
 		var o = objects[n],
-			x = o.x-left,
-			y = o.y-top,
+			ox = o.x,
+			oy = o.y,
+			x = ox-left,
+			y = oy-top,
 			sprite;
 
 		if( upsideDown )
@@ -115,8 +118,18 @@ function drawObjects( ctx, left, top, upsideDown )
 		else
 			sprite = sprites.tree;
 
-		x -= sprite.centerX;
-		y -= sprite.centerY;
+		var cx = sprite.centerX,
+			cy = sprite.centerY;
+//DEBUG
+		/*if( !player.crashed &&
+			py >= oy-cy &&
+			py <= oy+cy &&
+			px >= ox-cx &&
+			px <= ox+cx )
+			player.crashed = true;*/
+
+		x -= cx;
+		y -= cy;
 
 		ctx.drawImage( sprite, x, y );
 	}
@@ -158,16 +171,17 @@ function draw()
 			bottom = slopeHeight;
 		}
 
-		ctx.clearRect( 0, 0, width, height );
+		ctx.fillStyle = n & 1 ? "#d5f6ff" : "#c5e6ef";
+		ctx.fillRect( 0, 0, width, height );
 
-		drawObjects( ctx, left, top, upsideDown );
+		drawObjects( ctx, left, top, upsideDown, p );
 		drawPlayers( ctx, left, top, upsideDown );
 	}
 }
 
 function turn( player, mod )
 {
-	var h = player.heading;
+	var h = player.skiAngle;
 
 	h += mod;
 
@@ -178,29 +192,85 @@ function turn( player, mod )
 
 	h %= Math.TAU;
 
-	player.heading = h;
+	player.skiAngle = h;
 }
 
-function ski()
+function input()
 {
-	if( keysDown[72] )
+	if( keysDown[65] )
 		turn( players[0], -.1 );
-	else if( keysDown[76] )
+	else if( keysDown[68] )
 		turn( players[0], .1 );
 
-	if( keysDown[37] )
-		turn( players[1], -.1 );
-	else if( keysDown[39] )
-		turn( players[1], .1 );
+	if( playersLength > 1 )
+		if( keysDown[37] )
+			turn( players[1], -.1 );
+		else if( keysDown[39] )
+			turn( players[1], .1 );
+
+	if( playersLength > 2 )
+		if( keysDown[72] )
+			turn( players[2], -.1 );
+		else if( keysDown[76] )
+			turn( players[2], .1 );
 
 	for( var n = pointerLength; n--; )
 	{
 		var x = pointerX[n],
 			y = pointerY[n],
-			p = players[x/width | 0];
+			p = players[(horizontal ? x/width : y/height) | 0];
 
 		turn( p, -.1/centerX*(centerX-(x%width)) );
 	}
+}
+
+function ski()
+{
+	var alive = 0;
+
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n];
+
+		if( p.crashed )
+			continue;
+
+		var heading = p.heading,
+			skiAngle = p.skiAngle,
+			vx = p.vx,
+			vy = p.vy;
+
+		var slopeAngle = -Math.PI2,
+			steepness = -.4*steepFactor,
+			gx = Math.cos( slopeAngle )*steepness,
+			gy = Math.sin( slopeAngle )*steepness,
+			f = Math.max( 0, Math.cos( slopeAngle-skiAngle ) );
+
+		vx += gx*f;
+		vy += gy*f;
+
+		var sx = Math.cos( skiAngle+Math.PI2 ),
+			sy = Math.sin( skiAngle+Math.PI2 ),
+			f = Math.sin( heading-skiAngle );
+
+		vx -= sx*f;
+		vy -= sy*f;
+
+		vx -= Math.sin( maxSpeedFactor*vx );
+		vy -= Math.sin( maxSpeedFactor*vy );
+
+		p.x += vx;
+		p.y += vy;
+		p.vx = vx;
+		p.vy = vy;
+		p.heading = vx+vy > 0 ?
+			(Math.atan2( vy, vx )+Math.TAU)%Math.TAU :
+			0;
+
+		++alive;
+	}
+
+	return alive;
 }
 
 function run( now )
@@ -209,7 +279,11 @@ function run( now )
 	factor = 16/(now-last);
 	last = now;
 
-	ski();
+	input();
+
+	if( !ski() )
+		return;
+
 	draw();
 
 	requestAnimFrame( run );
@@ -301,6 +375,7 @@ function reset()
 		rw = ref.width,
 		rh = ref.height;
 
+	maxSpeedFactor = Math.PI2/(rh*2);
 	slopeWidth = rw*playersLength*10;
 	slopeHeight = sprites.tree.height*20;
 
@@ -333,11 +408,8 @@ function reset()
 
 		p.x = x;
 		p.y = y;
-		p.heading = 0;
 		p.sprite = sprites[
-			n & 1 ?
-			"skierYellowStraight" :
-			"skierBlueStraight"];
+			(n & 1 ? "skierYellow" : "skierBlue")+"Straight"];
 	}
 }
 
@@ -544,6 +616,7 @@ function resize()
 
 	if( w > h )
 	{
+		horizontal = true;
 		w = w/playersLength | 0;
 
 		for( var n = 0, x = 0;
@@ -558,6 +631,7 @@ function resize()
 	}
 	else
 	{
+		horizontal = false;
 		h = h/playersLength | 0;
 
 		for( var n = 0, y = 0;
@@ -612,9 +686,10 @@ function create()
 		players[n] = {
 			canvas: c,
 			ctx: x,
-			pointerLength: 0,
-			pointerX: [],
-			pointerY: [] };
+			vx: 0,
+			vy: 0,
+			heading: 0,
+			skiAngle: 0 };
 	}
 
 	ratio =
@@ -665,7 +740,6 @@ function init()
 		e.ontouchend = pointerUp;
 	}
 
-stats();
 	last = new Date().getTime()-16;
 	run();
 }
