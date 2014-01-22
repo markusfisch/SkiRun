@@ -54,6 +54,8 @@ var playersLength = 2,
 	height,
 	centerX,
 	centerY,
+	skierScreenTop,
+	skierScreenBottom,
 	pointerLength = 0,
 	pointerX = [],
 	pointerY = [],
@@ -77,15 +79,18 @@ function drawPlayers( ctx, left, top, upsideDown )
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			heading = p.heading,
+			heading = p.skiAngle-Math.PI2,
 			x = p.x-left,
 			y = p.y-top;
 
 		if( upsideDown )
 		{
-			heading = (heading+Math.PI) % (Math.TAU);
+			heading = (heading+Math.PI) % Math.TAU;
 			y = height-y;
 		}
+
+		while( heading < 0 )
+			heading += Math.TAU;
 
 		var sprite = p.sprite[indexFactor*heading | 0];
 
@@ -145,9 +150,9 @@ function draw()
 			x = p.x,
 			y = p.y,
 			left = x-centerX,
-			top = y-centerY,
+			top = y-skierScreenTop,
 			right = x+centerX,
-			bottom = y+centerY;
+			bottom = y+skierScreenBottom;
 
 		if( left < 0 )
 		{
@@ -232,7 +237,8 @@ function ski()
 	{
 		var p = players[n];
 
-		if( p.crashed )
+		if( p.crashed ||
+			p.y < 0 )
 			continue;
 
 		var heading = p.heading,
@@ -240,7 +246,7 @@ function ski()
 			vx = p.vx,
 			vy = p.vy;
 
-		var slopeAngle = -Math.PI2,
+		var slopeAngle = Math.PI2,
 			steepness = -.4*steepFactor,
 			gx = Math.cos( slopeAngle )*steepness,
 			gy = Math.sin( slopeAngle )*steepness,
@@ -259,6 +265,9 @@ function ski()
 		vx -= Math.sin( maxSpeedFactor*vx );
 		vy -= Math.sin( maxSpeedFactor*vy );
 
+		vx *= factor;
+		vy *= factor;
+
 		p.x += vx;
 		p.y += vy;
 		p.vx = vx;
@@ -273,9 +282,9 @@ function ski()
 	return alive;
 }
 
-function run( now )
+function run()
 {
-	now = now || new Date().getTime();
+	now = new Date().getTime();
 	factor = 16/(now-last);
 	last = now;
 
@@ -377,7 +386,7 @@ function reset()
 
 	maxSpeedFactor = Math.PI2/(rh*2);
 	slopeWidth = rw*playersLength*10;
-	slopeHeight = sprites.tree.height*20;
+	slopeHeight = sprites.tree.height*100;
 
 	objectsLength = 0;
 	objects = [];
@@ -397,8 +406,12 @@ function reset()
 	}
 
 	var cell = slopeWidth/playersLength,
+		margin = rh << 1,
 		x = cell >> 1,
-		y = slopeHeight-(rh << 1);
+		y = slopeHeight-margin;
+
+	skierScreenTop = height-margin;
+	skierScreenBottom = margin;
 
 	for( var n = 0;
 		n < playersLength;

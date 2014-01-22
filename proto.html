@@ -1,0 +1,461 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Proto</title>
+<style>
+
+body
+{
+	background: #fff;
+	margin: 0;
+	overflow: hidden;
+}
+
+div
+{
+	position: fixed;
+	left: 0; top: 0;
+	padding: 1em;
+	font: 12pt monospace; color: #555;
+}
+
+.Slope
+{
+	color: #aaa;
+}
+
+.Ski
+{
+	color: #22a;
+}
+
+.Vector
+{
+	color: #a22;
+}
+
+.Resistance
+{
+	color: #222;
+}
+</style>
+</head>
+<body>
+<canvas id="Canvas">Sorry, no canvas support.</canvas>
+<div id="Message"></div>
+<script>
+
+"use strict";
+
+Math.PI2 = Math.PI2 || Math.PI/2;
+Math.PI4 = Math.PI4 || Math.PI/4;
+Math.TAU = Math.TAU || Math.PI*2;
+
+Math.SINPI2 = Math.SINPI2 || Math.sin( Math.PI2 );
+
+var requestAnimFrame =
+		window.webkitRequestAnimationFrame ||
+		window.mozRequestAnimationFrame ||
+		window.msRequestAnimationFrame ||
+		window.oRequestAnimationFrame ||
+		window.requestAnimationFrame ||
+		function( callback )
+		{
+			setTimeout( callback, 16 );
+		},
+	canvas,
+	ctx,
+	ratio,
+	width,
+	height,
+	centerX,
+	centerY,
+	pointerX,
+	pointerY,
+	now,
+	last,
+	factor,
+	skiWidth,
+	skiHeight,
+	skiSpacing,
+	skierHeading,
+	skierScreenX,
+	skierScreenY,
+	skierX,
+	skierY,
+	steepness = .2,
+	gravityAngle = -Math.PI2,
+	gravityX = Math.cos( gravityAngle )*steepness,
+	gravityY = Math.sin( gravityAngle )*steepness,
+	gravityLength = Math.sqrt( gravityX*gravityX + gravityY*gravityY ),
+	vectorMagnification,
+	resistanceX = 0,
+	resistanceY = 0,
+	brakeX = 0,
+	brakeY = 0,
+	obstacles = [],
+	obstacleSize,
+	maxSpeedFactor,
+	vx,
+	vy,
+	message;
+
+function drawSki( x, y )
+{
+	var cx = skiWidth >> 1,
+		cy = skiHeight >> 1,
+		tip = skiHeight*.1 | 0,
+		l = x-cx,
+		r = x+cx,
+		t = y-cy,
+		b = y+cy,
+		tt = t+tip;
+
+	ctx.beginPath();
+	ctx.moveTo( x, t );
+	ctx.lineTo( l, tt );
+	ctx.lineTo( l, b );
+	ctx.lineTo( r, b );
+	ctx.lineTo( r, tt );
+	ctx.closePath();
+	ctx.fill();
+}
+
+function drawVector( cx, cy, x, y, mag )
+{
+	var mag = mag || 100;
+
+	ctx.beginPath();
+	ctx.moveTo( cx, cy );
+
+	cx += x*mag | 0;
+	cy += y*mag | 0;
+	ctx.lineTo( cx, cy );
+
+	mag = mag*.25 | 0;
+
+	var qx = cx-x*mag | 0,
+		qy = cy-y*mag | 0;
+
+	x = x*mag | 0;
+	y = y*mag | 0;
+
+	ctx.moveTo( cx, cy );
+	ctx.lineTo( qx-y, qy+x );
+	ctx.moveTo( cx, cy );
+	ctx.lineTo( qx+y, qy-x );
+	ctx.stroke();
+}
+
+function drawObstacle( x, y )
+{
+	ctx.beginPath();
+	ctx.moveTo( x, y-obstacleSize );
+	y += obstacleSize;
+	ctx.lineTo( x-obstacleSize, y );
+	ctx.lineTo( x+obstacleSize, y );
+	ctx.closePath();
+	ctx.fill();
+}
+
+function drawObstacles()
+{
+	for( var n = obstacles.length; n--; )
+	{
+		var o = obstacles[n],
+			x = o.x,
+			y = o.y;
+
+		x -= vx;
+		y -= vy;
+
+		if( x < 0 ||
+			x > width ||
+			y < 0 ||
+			y > height )
+		{
+			var p = 0,
+				range = width+height;
+
+			if( !(vx*100 | 0) )
+			{
+				range -= height;
+			}
+
+			if( !(vy*100 | 0) )
+			{
+				p = width;
+				range -= width;
+			}
+
+			p += range*Math.random() | 0;
+
+			if( p > width )
+			{
+				x = vx > 0 ? width : 0;
+				y = p-width;
+			}
+			else
+			{
+				x = p;
+				y = vy > 0 ? height : 0;
+			}
+		}
+
+		drawObstacle( x | 0, y | 0 );
+		o.x = x;
+		o.y = y;
+	}
+}
+
+function draw()
+{
+	ctx.clearRect( 0, 0, width, height );
+
+	ctx.strokeStyle = "#aaa";
+	ctx.fillStyle = "#eee";
+	drawObstacles();
+
+	drawVector(
+		skierScreenX,
+		skierScreenY,
+		gravityX,
+		gravityY,
+		vectorMagnification );
+
+	ctx.strokeStyle = "#a2a";
+	drawVector(
+		skierScreenX+gravityX*vectorMagnification,
+		skierScreenY+gravityY*vectorMagnification,
+		brakeX,
+		brakeY,
+		vectorMagnification );
+
+	ctx.strokeStyle = "#22a";
+	drawVector( skierScreenX, skierScreenY, skierX, skierY, skiHeight );
+
+	ctx.strokeStyle = "#222";
+	drawVector(
+		skierScreenX, skierScreenY,
+		-resistanceX, -resistanceY,
+		vectorMagnification );
+
+	ctx.strokeStyle = "#a22";
+	drawVector( skierScreenX, skierScreenY, vx, vy, skiHeight );
+
+	ctx.fillStyle = "#eee";
+
+	ctx.save();
+	ctx.translate( skierScreenX, skierScreenY );
+	ctx.rotate( skierHeading );
+	drawSki( -skiSpacing, 0 );
+	ctx.restore();
+
+	ctx.save();
+	ctx.translate( skierScreenX, skierScreenY );
+	ctx.rotate( skierHeading );
+	drawSki( skiSpacing, 0 );
+	ctx.restore();
+}
+
+function ski()
+{
+	var newSkierAngle = Math.atan2(
+			pointerY-skierScreenY,
+			pointerX-skierScreenX ),
+		dbg =
+			'<span class="Vector">'+
+			"vx: "+vx.toFixed( 3 )+"<br/>"+
+			"vy: "+vy.toFixed( 3 )+"<br/></span>"+
+			'<span class="Ski">'+
+			"newSkierAngle: "+newSkierAngle.toFixed( 3 )+"<br/></span>";
+
+	skierX = Math.cos( newSkierAngle );
+	skierY = Math.sin( newSkierAngle );
+	skierHeading = newSkierAngle+Math.PI2;
+
+	// difference between gravity vector and where the skier are pointing to
+	var a = gravityAngle-newSkierAngle,
+		d = (a+Math.TAU) % Math.TAU;
+
+	// difference from -PI to +PI
+	if( d > Math.PI )
+		d -= Math.TAU;
+
+	// translate maximum to PI/2
+	if( d > Math.PI2 )
+		d = Math.PI2-d+Math.PI2;
+	else if( d < -Math.PI2 )
+		d = -Math.PI2-d+-Math.PI2;
+
+	dbg +=
+		"d: "+d.toFixed( 3 )+"<br/>";
+
+	if( d > 0 )
+	{
+		brakeX = skierY;
+		brakeY = -skierX;
+	}
+	else
+	{
+		brakeX = -skierY;
+		brakeY = skierX;
+	}
+
+	var l = gravityLength*
+		Math.sin( Math.abs( d ) )/
+		Math.SINPI2;
+
+	brakeX *= l;
+	brakeY *= l;
+
+	var x = gravityX+brakeX,
+		y = gravityY+brakeY;
+
+	// timing
+	x *= factor;
+	y *= factor;
+
+	dbg +=
+		"x: "+x.toFixed( 3 )+"<br/>"+
+		"y: "+y.toFixed( 3 )+"<br/>";
+
+	vx += x;
+	vy += y;
+
+	// resistance
+	vx -= (resistanceX = vx*maxSpeedFactor);
+	vy -= (resistanceY = vy*maxSpeedFactor);
+
+	message.innerHTML =
+		dbg+
+		'<span class="Resitance">'+
+		"resistanceX: "+resistanceX.toFixed( 3 )+"<br/>"+
+		"resistanceY: "+resistanceY.toFixed( 3 )+"<br/><span>"+
+		'<span class="Vector">'+
+		"vx': "+vx.toFixed( 3 )+"<br/>"+
+		"vy': "+vy.toFixed( 3 )+"<br/><span>";
+}
+
+function run()
+{
+	now = new Date().getTime();
+	factor = 16/(now-last);
+	last = now;
+
+	ski();
+	draw();
+
+	requestAnimFrame( run );
+}
+
+function pointerMove( ev )
+{
+	var e = ev || event;
+
+	if( e.touches )
+	{
+		var t = touches[0];
+		pointerX = t.clientX;
+		pointerY = t.clientY;
+	}
+	else if( typeof e.clientX !== "undefined" )
+	{
+		pointerX = e.clientX;
+		pointerY = e.clientY;
+	}
+	else
+	{
+		pointerX = e.pageX;
+		pointerY = e.pageY;
+	}
+
+	ev.preventDefault();
+	return false;
+}
+
+function reset()
+{
+	var min = Math.min( width, height );
+
+	skiWidth = Math.ceil( min*.006 );
+	skiHeight = Math.ceil( min*.07 );
+	skiSpacing = Math.ceil( skiWidth*.6 );
+
+	skierScreenX = centerX;
+	skierScreenY = centerY*1.5 | 0;
+	skierHeading = 0;
+
+	obstacleSize = skiHeight*.3 | 0;
+	maxSpeedFactor = .03;
+	vx = vy = 0;
+
+	pointerX = centerX;
+	pointerY = centerY;
+
+	vectorMagnification = 1/Math.sqrt(
+		gravityX*gravityX +
+		gravityY*gravityY )*skiHeight;
+
+	for( var n = 24; n--; )
+		obstacles[n] = {
+			x: Math.random()*width,
+			y: Math.random()*height };
+}
+
+function resize()
+{
+	var w = window.innerWidth,
+		h = window.innerHeight;
+
+	width = w*ratio;
+	height = h*ratio;
+
+	centerX = width >> 1;
+	centerY = height >> 1;
+
+	canvas.width = width;
+	canvas.height = height;
+
+	canvas.style.width = w+"px";
+	canvas.style.height = h+"px";
+
+	reset();
+}
+
+function init()
+{
+	if( !(message = document.getElementById( "Message" )) ||
+		!(canvas = document.getElementById( "Canvas" )) ||
+		!(ctx = canvas.getContext( "2d" )) )
+		return;
+
+	ratio = (window.devicePixelRatio || 1)/(
+		ctx.webkitBackingStorePixelRatio ||
+		ctx.mozBackingStorePixelRatio ||
+		ctx.msBackingStorePixelRatio ||
+		ctx.oBackingStorePixelRatio ||
+		ctx.backingStorePixelRatio ||
+		1);
+
+	window.onresize = resize;
+	resize();
+
+	document.onmousemove = pointerMove;
+	document.ontouchmove = pointerMove;
+
+	last = new Date().getTime()-64;
+	run();
+}
+
+window.onload = function()
+{
+	// give mobile browser a little time to settle
+	// window.inner* values
+	setTimeout( init, 200 );
+}
+
+</script>
+</body>
+</html>
