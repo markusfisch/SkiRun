@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
 <title>Proto</title>
 <style>
 
@@ -49,9 +50,7 @@ div
 "use strict";
 
 Math.PI2 = Math.PI2 || Math.PI/2;
-Math.PI4 = Math.PI4 || Math.PI/4;
 Math.TAU = Math.TAU || Math.PI*2;
-
 Math.SINPI2 = Math.SINPI2 || Math.sin( Math.PI2 );
 
 var requestAnimFrame =
@@ -73,6 +72,7 @@ var requestAnimFrame =
 	centerY,
 	pointerX,
 	pointerY,
+	pointerSet = false,
 	now,
 	last,
 	factor,
@@ -350,26 +350,54 @@ function run()
 	requestAnimFrame( run );
 }
 
+function setPointer( e )
+{
+	if( e.touches )
+	{
+		var t = e.touches[0];
+
+		pointerX = t.clientX*ratio;
+		pointerY = t.clientY*ratio;
+	}
+	else if( typeof e.clientX !== "undefined" )
+	{
+		pointerX = e.clientX*ratio;
+		pointerY = e.clientY*ratio;
+	}
+	else
+	{
+		pointerX = e.pageX*ratio;
+		pointerY = e.pageY*ratio;
+	}
+}
+
+function pointerUp( ev )
+{
+	var e = ev || event;
+
+	pointerSet = false;
+
+	ev.preventDefault();
+	return false;
+}
+
 function pointerMove( ev )
 {
 	var e = ev || event;
 
-	if( e.touches )
-	{
-		var t = touches[0];
-		pointerX = t.clientX;
-		pointerY = t.clientY;
-	}
-	else if( typeof e.clientX !== "undefined" )
-	{
-		pointerX = e.clientX;
-		pointerY = e.clientY;
-	}
-	else
-	{
-		pointerX = e.pageX;
-		pointerY = e.pageY;
-	}
+	if( pointerSet )
+		setPointer( ev );
+
+	ev.preventDefault();
+	return false;
+}
+
+function pointerDown( ev )
+{
+	var e = ev || event;
+
+	pointerSet = true;
+	setPointer( ev );
 
 	ev.preventDefault();
 	return false;
@@ -442,8 +470,18 @@ function init()
 	window.onresize = resize;
 	resize();
 
-	document.onmousemove = pointerMove;
-	document.ontouchmove = pointerMove;
+	var e = document.body;
+
+	e.onmousedown = pointerDown;
+	e.onmousemove = pointerMove;
+	e.onmouseup = pointerUp;
+
+	if( "ontouchstart" in e )
+	{
+		e.ontouchstart = pointerDown;
+		e.ontouchmove = pointerMove;
+		e.ontouchend = pointerUp;
+	}
 
 	last = new Date().getTime()-64;
 	run();

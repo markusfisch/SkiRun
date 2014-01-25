@@ -24,28 +24,21 @@ canvas
 
 "use strict";
 
-// shim layer with setTimeout fallback
-// see http://paulirish.com/2011/requestanimationframe-for-smart-animating/
-window.requestAnimFrame =
-	window.requestAnimationFrame ||
-	window.webkitRequestAnimationFrame ||
-	window.mozRequestAnimationFrame ||
-	window.oRequestAnimationFrame ||
-	window.msRequestAnimationFrame ||
-	function( callback, element )
-	{
-		window.setTimeout(
-			function()
-			{
-				callback( new Date().getTime() );
-			},
-			16 );
-	};
+Math.PI2 = Math.PI2 || Math.PI/2;
+Math.TAU = Math.TAU || Math.PI*2;
+Math.SINPI2 = Math.SINPI2 || Math.sin( Math.PI2 );
 
-Math.PI2 = Math.PI2 || Math.PI/2;
-Math.TAU = Math.TAU || Math.PI*2;
-
-var playersLength = 2,
+var requestAnimFrame =
+		window.webkitRequestAnimationFrame ||
+		window.mozRequestAnimationFrame ||
+		window.msRequestAnimationFrame ||
+		window.oRequestAnimationFrame ||
+		window.requestAnimationFrame ||
+		function( callback )
+		{
+			setTimeout( callback, 16 );
+		},
+	playersLength = 2,
 	players = [],
 	atlas,
 	ratio,
@@ -60,6 +53,7 @@ var playersLength = 2,
 	pointerX = [],
 	pointerY = [],
 	keysDown = [],
+	now,
 	last,
 	factor,
 	objectsLength,
@@ -68,7 +62,11 @@ var playersLength = 2,
 	mobile = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|blackberry|webos/i ),
 	orientationsLength = 36,
-	steepFactor = 1/Math.PI2,
+	steepness = .2,
+	gravityVector = -Math.PI2,
+	gravityX = Math.cos( gravityVector )*steepness,
+	gravityY = Math.sin( gravityVector )*steepness,
+	gravityLength = Math.sqrt( gravityX*gravityX + gravityY*gravityY ),
 	indexFactor = orientationsLength/2/Math.PI,
 	maxSpeedFactor,
 	slopeWidth,
@@ -125,13 +123,13 @@ function drawObjects( ctx, left, top, upsideDown, player )
 
 		var cx = sprite.centerX,
 			cy = sprite.centerY;
-//DEBUG
-		/*if( !player.crashed &&
+
+		if( !player.crashed &&
 			py >= oy-cy &&
 			py <= oy+cy &&
 			px >= ox-cx &&
 			px <= ox+cx )
-			player.crashed = true;*/
+			player.crashed = true;
 
 		x -= cx;
 		y -= cy;
@@ -241,40 +239,62 @@ function ski()
 			p.y < 0 )
 			continue;
 
-		var heading = p.heading,
-			skiAngle = p.skiAngle,
+		var skiAngle = p.skiAngle,
+			sx = Math.cos( skiAngle ),
+			sy = Math.sin( skiAngle ),
 			vx = p.vx,
-			vy = p.vy;
+			vy = p.vy,
+			a = gravityVector-skiAngle,
+			d = (a+Math.TAU) % Math.TAU,
+			x,
+			y;
 
-		var slopeAngle = Math.PI2,
-			steepness = -.4*steepFactor,
-			gx = Math.cos( slopeAngle )*steepness,
-			gy = Math.sin( slopeAngle )*steepness,
-			f = Math.max( 0, Math.cos( slopeAngle-skiAngle ) );
+		// difference from -PI to +PI
+		if( d > Math.PI )
+			d -= Math.TAU;
 
-		vx += gx*f;
-		vy += gy*f;
+		// translate maximum to PI/2
+		if( d > Math.PI2 )
+			d = Math.PI2-d+Math.PI2;
+		else if( d < -Math.PI2 )
+			d = -Math.PI2-d+-Math.PI2;
 
-		var sx = Math.cos( skiAngle+Math.PI2 ),
-			sy = Math.sin( skiAngle+Math.PI2 ),
-			f = Math.sin( heading-skiAngle );
+		if( d > 0 )
+		{
+			x = sy;
+			y = -sx;
+		}
+		else
+		{
+			x = -sy;
+			y = sx;
+		}
 
-		vx -= sx*f;
-		vy -= sy*f;
+		var l = gravityLength*
+			Math.sin( Math.abs( d ) )/
+			Math.SINPI2;
 
-		vx -= Math.sin( maxSpeedFactor*vx );
-		vy -= Math.sin( maxSpeedFactor*vy );
+		x *= l;
+		y *= l;
 
-		vx *= factor;
-		vy *= factor;
+		x += gravityX;
+		y += gravityY;
+
+		// timing
+		x *= factor;
+		y *= factor;
+
+		vx += x;
+		vy += y;
+
+		// resistance
+		vx -= vx*maxSpeedFactor;
+		vy -= vy*maxSpeedFactor;
 
 		p.x += vx;
 		p.y += vy;
 		p.vx = vx;
 		p.vy = vy;
-		p.heading = vx+vy > 0 ?
-			(Math.atan2( vy, vx )+Math.TAU)%Math.TAU :
-			0;
 
 		++alive;
 	}
@@ -315,20 +335,20 @@ function setPointers( ev, set )
 		{
 			var t = e.touches[n];
 
-			pointerX[n] = t.pageX;
-			pointerY[n] = t.pageY;
+			pointerX[n] = t.pageX*ratio;
+			pointerY[n] = t.pageY*ratio;
 		}
 	}
 	else if( typeof e.clientX !== "undefined" )
 	{
-		pointerX[0] = e.clientX;
-		pointerY[0] = e.clientY;
+		pointerX[0] = e.clientX*ratio;
+		pointerY[0] = e.clientY*ratio;
 		pointerLength = 1;
 	}
 	else if( typeof e.pageX !== "undefined" )
 	{
-		pointerX[0] = e.pageX;
-		pointerY[0] = e.pageY;
+		pointerX[0] = e.pageX*ratio;
+		pointerY[0] = e.pageY*ratio;
 		pointerLength = 1;
 	}
 
@@ -384,9 +404,9 @@ function reset()
 		rw = ref.width,
 		rh = ref.height;
 
-	maxSpeedFactor = Math.PI2/(rh*2);
+	maxSpeedFactor = .03;
 	slopeWidth = rw*playersLength*10;
-	slopeHeight = sprites.tree.height*100;
+	slopeHeight = sprites.tree.height*30;
 
 	objectsLength = 0;
 	objects = [];
@@ -701,7 +721,6 @@ function create()
 			ctx: x,
 			vx: 0,
 			vy: 0,
-			heading: 0,
 			skiAngle: 0 };
 	}
 
