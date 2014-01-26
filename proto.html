@@ -96,6 +96,7 @@ var requestAnimFrame =
 	brakeY = 0,
 	obstacles = [],
 	obstacleSize,
+	reverseFactor = 1/Math.PI2,
 	maxSpeedFactor,
 	vx,
 	vy,
@@ -283,6 +284,8 @@ function ski()
 	if( d > Math.PI )
 		d -= Math.TAU;
 
+	var r = Math.abs( d );
+
 	// translate maximum to PI/2
 	if( d > Math.PI2 )
 		d = Math.PI2-d+Math.PI2;
@@ -312,6 +315,14 @@ function ski()
 
 	var x = gravityX+brakeX,
 		y = gravityY+brakeY;
+
+	// reverse resistance
+	if( r > Math.PI2 )
+	{
+		r = 1-reverseFactor*(r-Math.PI2);
+		x *= r;
+		y *= r;
+	}
 
 	// timing
 	x *= factor;
@@ -416,7 +427,7 @@ function reset()
 	skierHeading = 0;
 
 	obstacleSize = skiHeight*.3 | 0;
-	maxSpeedFactor = .03;
+	maxSpeedFactor = 34.50/min;
 	vx = vy = 0;
 
 	pointerX = centerX;

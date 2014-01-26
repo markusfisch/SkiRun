@@ -68,6 +68,7 @@ var requestAnimFrame =
 	gravityY = Math.sin( gravityVector )*steepness,
 	gravityLength = Math.sqrt( gravityX*gravityX + gravityY*gravityY ),
 	indexFactor = orientationsLength/2/Math.PI,
+	reverseFactor = 1/Math.PI2,
 	maxSpeedFactor,
 	slopeWidth,
 	slopeHeight;
@@ -77,7 +78,7 @@ function drawPlayers( ctx, left, top, upsideDown )
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			heading = p.skiAngle-Math.PI2,
+			heading = (p.skiAngle+Math.PI2) % Math.TAU,
 			x = p.x-left,
 			y = p.y-top;
 
@@ -86,9 +87,6 @@ function drawPlayers( ctx, left, top, upsideDown )
 			heading = (heading+Math.PI) % Math.TAU;
 			y = height-y;
 		}
-
-		while( heading < 0 )
-			heading += Math.TAU;
 
 		var sprite = p.sprite[indexFactor*heading | 0];
 
@@ -151,28 +149,6 @@ function draw()
 			top = y-skierScreenTop,
 			right = x+centerX,
 			bottom = y+skierScreenBottom;
-
-		if( left < 0 )
-		{
-			left = 0;
-			right = width;
-		}
-		else if( right > slopeWidth )
-		{
-			left = slopeWidth-width;
-			right = slopeWidth;
-		}
-
-		if( top < 0 )
-		{
-			top = 0;
-			bottom = height;
-		}
-		else if( bottom > slopeHeight )
-		{
-			top = slopeHeight-height;
-			bottom = slopeHeight;
-		}
 
 		ctx.fillStyle = n & 1 ? "#d5f6ff" : "#c5e6ef";
 		ctx.fillRect( 0, 0, width, height );
@@ -253,6 +229,8 @@ function ski()
 		if( d > Math.PI )
 			d -= Math.TAU;
 
+		var r = Math.abs( d );
+
 		// translate maximum to PI/2
 		if( d > Math.PI2 )
 			d = Math.PI2-d+Math.PI2;
@@ -279,6 +257,14 @@ function ski()
 
 		x += gravityX;
 		y += gravityY;
+
+		// moving backwards should be slower
+		if( r > Math.PI2 )
+		{
+			r = 1-reverseFactor*(r-Math.PI2);
+			x *= r;
+			y *= r;
+		}
 
 		// timing
 		x *= factor;
@@ -404,8 +390,7 @@ function reset()
 		rw = ref.width,
 		rh = ref.height;
 
-	maxSpeedFactor = .03;
-	slopeWidth = rw*playersLength*10;
+	slopeWidth = rw*playersLength*3;
 	slopeHeight = sprites.tree.height*30;
 
 	objectsLength = 0;
@@ -441,6 +426,11 @@ function reset()
 
 		p.x = x;
 		p.y = y;
+
+		p.vx =
+		p.vy =
+		p.skiAngle = 0;
+
 		p.sprite = sprites[
 			(n & 1 ? "skierYellow" : "skierBlue")+"Straight"];
 	}
@@ -537,7 +527,7 @@ function scale( styleWidth )
 			}
 		},
 		step = Math.TAU/orientationsLength,
-		scale = Math.min( width, height )*.05/
+		scale = Math.min( width, height )*.075/
 			frames.skierBlueStraight.frame.w;
 
 	sprites = {};
@@ -647,8 +637,8 @@ function resize()
 	var w = window.innerWidth,
 		h = window.innerHeight;
 
-	if( w > h )
-	{
+	/*if( w > h )
+	{*/
 		horizontal = true;
 		w = w/playersLength | 0;
 
@@ -661,7 +651,7 @@ function resize()
 			s.left = x+"px";
 			s.top = "0px";
 		}
-	}
+	/*}
 	else
 	{
 		horizontal = false;
@@ -676,13 +666,14 @@ function resize()
 			s.left = "0px";
 			s.top = y+"px";
 		}
-	}
+	}*/
 
 	width = w*ratio | 0;
 	height = h*ratio | 0;
 
 	centerX = width >> 1;
 	centerY = height >> 1;
+	maxSpeedFactor = 17.25/Math.min( w, h );
 
 	for( var n = playersLength; n--; )
 	{
@@ -718,10 +709,7 @@ function create()
 
 		players[n] = {
 			canvas: c,
-			ctx: x,
-			vx: 0,
-			vy: 0,
-			skiAngle: 0 };
+			ctx: x };
 	}
 
 	ratio =
