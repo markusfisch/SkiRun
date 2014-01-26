@@ -44,7 +44,7 @@ div
 </head>
 <body>
 <canvas id="Canvas">Sorry, no canvas support.</canvas>
-<div id="Message"></div>
+<div id="Message">Initializing...</div>
 <script>
 
 "use strict";
@@ -216,6 +216,7 @@ function draw()
 
 	ctx.strokeStyle = "#aaa";
 	ctx.fillStyle = "#eee";
+
 	drawObstacles();
 
 	drawVector(
@@ -272,11 +273,32 @@ function ski()
 			'<span class="Ski">'+
 			"newSkierAngle: "+newSkierAngle.toFixed( 3 )+"<br/></span>";
 
+	// move skiers smoothly
+	var before = skierHeading-Math.PI2;
+
+	while( before < 0 )
+		before += Math.TAU;
+
+	while( newSkierAngle < 0 )
+		newSkierAngle += Math.TAU;
+
+	var a = newSkierAngle-before,
+		d = (a+Math.TAU) % Math.TAU;
+
+	if( d > 0 )
+	{
+		if( d > Math.PI )
+			d -= Math.TAU;
+
+		newSkierAngle = before+.1*d;
+	}
+
+	// vector from angle
 	skierX = Math.cos( newSkierAngle );
 	skierY = Math.sin( newSkierAngle );
 	skierHeading = newSkierAngle+Math.PI2;
 
-	// difference between gravity vector and where the skier are pointing to
+	// difference between gravity angle and skier angle
 	var a = gravityAngle-newSkierAngle,
 		d = (a+Math.TAU) % Math.TAU;
 
@@ -295,26 +317,32 @@ function ski()
 	dbg +=
 		"d: "+d.toFixed( 3 )+"<br/>";
 
+	var x,
+		y;
+
 	if( d > 0 )
 	{
-		brakeX = skierY;
-		brakeY = -skierX;
+		x = skierY;
+		y = -skierX;
 	}
 	else
 	{
-		brakeX = -skierY;
-		brakeY = skierX;
+		x = -skierY;
+		y = skierX;
 	}
 
 	var l = gravityLength*
 		Math.sin( Math.abs( d ) )/
 		Math.SINPI2;
 
-	brakeX *= l;
-	brakeY *= l;
+	x *= l;
+	y *= l;
 
-	var x = gravityX+brakeX,
-		y = gravityY+brakeY;
+	brakeX = x;
+	brakeY = y;
+
+	x += gravityX;
+	y += gravityY;
 
 	// reverse resistance
 	if( r > Math.PI2 )
@@ -470,6 +498,8 @@ function init()
 		!(ctx = canvas.getContext( "2d" )) )
 		return;
 
+	message.innerHTML = "Attaching...";
+
 	ratio = (window.devicePixelRatio || 1)/(
 		ctx.webkitBackingStorePixelRatio ||
 		ctx.mozBackingStorePixelRatio ||
@@ -502,7 +532,7 @@ window.onload = function()
 {
 	// give mobile browser a little time to settle
 	// window.inner* values
-	setTimeout( init, 200 );
+	setTimeout( init, 250 );
 }
 
 </script>

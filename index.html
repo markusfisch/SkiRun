@@ -136,6 +136,33 @@ function drawObjects( ctx, left, top, upsideDown, player )
 	}
 }
 
+function drawMarks( x, y, bottom )
+{
+	ctx.lineWidth = 6;
+	ctx.beginPath();
+	ctx.moveTo( x, y );
+
+	for( var n = mark, l = maxMarks; --l; )
+	{
+		if( --n < 0 )
+			n = maxMarks-1;
+
+		var m = marks[n];
+
+		if( m == null )
+			break;
+
+		var y = bottom-m.y;
+
+		ctx.lineTo( m.x, y );
+
+		if( y > height )
+			break;
+	}
+
+	ctx.stroke();
+}
+
 function draw()
 {
 	for( var n = playersLength; n--; )
