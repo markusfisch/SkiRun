@@ -82,6 +82,7 @@ var requestAnimFrame =
 	skierHeading,
 	skierScreenX,
 	skierScreenY,
+	skierAngle,
 	skierX,
 	skierY,
 	steepness = .2,
@@ -270,19 +271,15 @@ function ski()
 			'<span class="Vector">'+
 			"vx: "+vx.toFixed( 3 )+"<br/>"+
 			"vy: "+vy.toFixed( 3 )+"<br/></span>"+
+			"skierAngle: "+skierAngle.toFixed( 3 )+"<br/>"+
 			'<span class="Ski">'+
 			"newSkierAngle: "+newSkierAngle.toFixed( 3 )+"<br/></span>";
 
 	// move skiers smoothly
-	var before = skierHeading-Math.PI2;
-
-	while( before < 0 )
-		before += Math.TAU;
-
 	while( newSkierAngle < 0 )
 		newSkierAngle += Math.TAU;
 
-	var a = newSkierAngle-before,
+	var a = newSkierAngle-skierAngle,
 		d = (a+Math.TAU) % Math.TAU;
 
 	if( d > 0 )
@@ -290,8 +287,10 @@ function ski()
 		if( d > Math.PI )
 			d -= Math.TAU;
 
-		newSkierAngle = before+.1*d;
+		newSkierAngle = (skierAngle+.1*d) % Math.TAU;
 	}
+
+	skierAngle = newSkierAngle;
 
 	// vector from angle
 	skierX = Math.cos( newSkierAngle );
@@ -340,6 +339,10 @@ function ski()
 
 	brakeX = x;
 	brakeY = y;
+
+	dbg +=
+		"brakeX: "+brakeX.toFixed( 3 )+"<br/>"+
+		"brakeY: "+brakeY.toFixed( 3 )+"<br/>";
 
 	x += gravityX;
 	y += gravityY;
@@ -453,6 +456,7 @@ function reset()
 	skierScreenX = centerX;
 	skierScreenY = centerY*1.5 | 0;
 	skierHeading = 0;
+	skierAngle = 0;
 
 	obstacleSize = skiHeight*.3 | 0;
 	maxSpeedFactor = 34.50/min;
