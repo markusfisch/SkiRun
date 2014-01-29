@@ -42,7 +42,6 @@ var requestAnimFrame =
 	players = [],
 	atlas,
 	ratio,
-	horizontal,
 	width,
 	height,
 	centerX,
@@ -73,6 +72,8 @@ var requestAnimFrame =
 	slopeWidth,
 	slopeHeight,
 	skiWidth,
+	skiGap2,
+	skiLength2,
 	marksTimerMax = 15;
 
 function drawPlayers( ctx, left, top, upsideDown )
@@ -102,16 +103,36 @@ function drawPlayers( ctx, left, top, upsideDown )
 			x = p.x;
 			y = p.y;
 
-			if( x != p.lastMarkX ||
-				y != p.lastMarkY )
+			var sx = p.sx,
+				sy = p.sy,
+				cx,
+				cy;
+
+			cx = x+sy*skiGap2;
+			cy = y+sx*skiGap2;
+
+			if( x != p.marksLastX ||
+				y != p.marksLastY )
 			{
-				var m = p.mark;
+				var m = p.mark,
+					lx = sx*skiLength2,
+					ly = sy*skiLength2;
 
-				p.marksX[m] = x;
-				p.marksY[m] = y;
+				p.marksLastX = cx;
+				p.marksLastY = cy;
 
-				p.lastMarkX = x;
-				p.lastMarkY = y;
+				p.marksLeftTopX[m] = cx+lx;
+				p.marksLeftTopY[m] = cy+ly;
+				p.marksLeftBottomX[m] = cx-lx;
+				p.marksLeftBottomY[m] = cy-ly;
+
+				cx = x-sy*skiGap2;
+				cy = y+sx*skiGap2;
+
+				p.marksRightTopX[m] = cx+lx;
+				p.marksRightTopY[m] = cy+ly;
+				p.marksRightBottomX[m] = cx-lx;
+				p.marksRightBottomY[m] = cy-ly;
 
 				++p.mark;
 			}
@@ -162,45 +183,61 @@ function drawObjects( ctx, left, top, upsideDown, player )
 
 function drawMarks( ctx, left, top )
 {
-	ctx.strokeStyle = "#b5d6df";
-	ctx.lineWidth = skiWidth;
+	ctx.fillStyle = "#b5d6df";
 
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			lastX = p.x-left,
-			lastY = p.y-top,
-			marksX = p.marksX,
-			marksY = p.marksY,
-			set = false;
+			l = p.mark,
+			topX = p.marksLeftTopX,
+			topY = p.marksLeftTopY,
+			bottomX = p.marksLeftBottomX,
+			bottomY = p.marksLeftBottomY;
 
-		ctx.beginPath();
-
-		for( var m = p.mark; m--; )
+		for( var s = 1; s--; )
 		{
-			var x = marksX[m]-left,
-				y = marksY[m]-top;
+			var m = l,
+				set = false;
 
-			if( !set )
+			ctx.beginPath();
+
+			while( m-- )
 			{
-				if( y < 0 )
-				{
-					lastX = x;
-					lastY = y;
-					continue;
-				}
+				var x = topX[m]-left,
+					y = topY[m]-top;
 
-				ctx.moveTo( lastX, lastY );
-				set = true;
+				if( !set )
+				{
+					ctx.moveTo( x, y );
+					set = true;
+				}
+				else
+					ctx.lineTo( x, y );
+
+				if( y > height )
+					break;
 			}
 
-			ctx.lineTo( x, y );
+			do
+			{
+				var x = bottomX[m]-left,
+					y = bottomY[m]-top;
 
-			if( y > height )
+				ctx.lineTo( x, y );
+
+			} while( ++m < l );
+
+			ctx.closePath();
+			ctx.fill();
+
+			if( s )
 				break;
-		}
 
-		ctx.stroke();
+			topX = p.marksRightTopX;
+			topY = p.marksRightTopY;
+			bottomX = p.marksRightBottomX;
+			bottomY = p.marksRightBottomY;
+		}
 	}
 }
 
@@ -268,7 +305,7 @@ function input()
 	{
 		var x = pointerX[n],
 			y = pointerY[n],
-			p = players[(horizontal ? x/width : y/height) | 0];
+			p = players[x/width | 0];
 
 		turn( p, step/centerX*(centerX-(x % width)) );
 	}
@@ -287,8 +324,8 @@ function ski()
 			continue;
 
 		var skiAngle = p.skiAngle,
-			sx = Math.cos( skiAngle ),
-			sy = Math.sin( skiAngle ),
+			sx = (p.sx = Math.cos( skiAngle )),
+			sy = (p.sy = Math.sin( skiAngle )),
 			vx = p.vx,
 			vy = p.vy,
 			a = gravityVector-skiAngle,
@@ -463,7 +500,9 @@ function reset()
 
 	slopeWidth = rw*playersLength*3;
 	slopeHeight = sprites.tree.height*30;
-	skiWidth = rw*.2 | 0;
+	skiWidth = rw*.1 | 0;
+	skiGap2 = rw*.0398 | 0;
+	skiLength2 = rh >> 1;
 
 	objectsLength = 0;
 	objects = [];
@@ -501,14 +540,22 @@ function reset()
 
 		p.vx =
 		p.vy =
+		p.sx =
+		p.sy =
 		p.skiAngle = 0;
 
 		p.marksTimer = marksTimerMax;
-		p.mark = 0;
-		p.lastMarkX = x;
-		p.lastMarkY = y;
-		p.marksX = [];
-		p.marksY = [];
+		p.mark =
+		p.marksLastX =
+		p.marksLastY = 0;
+		p.marksLeftTopX = [];
+		p.marksLeftTopY = [];
+		p.marksLeftBottomX = [];
+		p.marksLeftBottomY = [];
+		p.marksRightTopX = [];
+		p.marksRightTopY = [];
+		p.marksRightBottomX = [];
+		p.marksRightBottomY = [];
 
 		p.sprite = sprites[
 			(n & 1 ? "skierYellow" : "skierBlue")+"Straight"];
@@ -556,6 +603,9 @@ function scale( styleWidth )
 			skierBlueCrashed: {
 				frame: {/*skier-blue-crashed*/x:1891,y:2,w:130,h:173}
 			},
+			skierBlueBackwards: {
+				frame: {/*skier-blue-backwards*/x:1891,y:2,w:130,h:173}
+			},
 			skierYellowStraight: {
 				rotate: true,
 				frame: {/*skier-yellow-straight*/x:1329,y:2,w:103,h:222}
@@ -593,6 +643,9 @@ function scale( styleWidth )
 			},
 			skierYellowCrashed: {
 				frame: {/*skier-yellow-crashed*/x:1757,y:2,w:130,h:173}
+			},
+			skierYellowBackwards: {
+				frame: {/*skier-yellow-backwards*/x:1757,y:2,w:130,h:173}
 			},
 			tree: {
 				frame: {/*tree*/x:526,y:2,w:195,h:256}
@@ -716,36 +769,17 @@ function resize()
 	var w = window.innerWidth,
 		h = window.innerHeight;
 
-	/*if( w > h )
-	{*/
-		horizontal = true;
-		w = w/playersLength | 0;
+	w = w/playersLength | 0;
 
-		for( var n = 0, x = 0;
-			n < playersLength;
-			++n, x += w )
-		{
-			var s = players[n].canvas.style;
-
-			s.left = x+"px";
-			s.top = "0px";
-		}
-	/*}
-	else
+	for( var n = 0, x = 0;
+		n < playersLength;
+		++n, x += w )
 	{
-		horizontal = false;
-		h = h/playersLength | 0;
+		var s = players[n].canvas.style;
 
-		for( var n = 0, y = 0;
-			n < playersLength;
-			++n, y += h )
-		{
-			var s = players[n].canvas.style;
-
-			s.left = "0px";
-			s.top = y+"px";
-		}
-	}*/
+		s.left = x+"px";
+		s.top = "0px";
+	}
 
 	width = w*ratio | 0;
 	height = h*ratio | 0;
@@ -838,6 +872,13 @@ function init()
 		e.ontouchmove = pointerMove;
 		e.ontouchend = pointerUp;
 	}
+
+// Mr. Doob's Stats
+function stats()
+{
+var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);
+}
+stats();
 
 	last = new Date().getTime()-16;
 	run();
