@@ -73,6 +73,8 @@ var requestAnimFrame =
 	slopeHeight,
 	skiWidth,
 	skiGap2,
+	skiGap2PlusSki2,
+	skiGap2MinusSki2,
 	skiLength2,
 	marksTimerMax = 15;
 
@@ -98,41 +100,43 @@ function drawPlayers( ctx, left, top, upsideDown )
 
 		ctx.drawImage( sprite, x, y );
 
-		if( !--p.marksTimer )
+		if( !p.crashed &&
+			!--p.marksTimer )
 		{
 			x = p.x;
 			y = p.y;
 
 			var sx = p.sx,
 				sy = p.sy,
-				cx,
-				cy;
+				leftX = x+sy*skiGap2PlusSki2,
+				leftY = y+sx*skiGap2PlusSki2;
 
-			cx = x+sy*skiGap2;
-			cy = y+sx*skiGap2;
-
-			if( x != p.marksLastX ||
-				y != p.marksLastY )
+			if( leftX != p.marksLastX ||
+				leftY != p.marksLastY )
 			{
 				var m = p.mark,
+					rightX = x+sy*skiGap2MinusSki2,
+					rightY = y+sx*skiGap2MinusSki2,
 					lx = sx*skiLength2,
 					ly = sy*skiLength2;
 
-				p.marksLastX = cx;
-				p.marksLastY = cy;
+				p.marksLastX = leftX;
+				p.marksLastY = leftY;
 
-				p.marksLeftTopX[m] = cx+lx;
-				p.marksLeftTopY[m] = cy+ly;
-				p.marksLeftBottomX[m] = cx-lx;
-				p.marksLeftBottomY[m] = cy-ly;
+				p.marksLeftTopX[m] = leftX+lx | 0;
+				p.marksLeftTopY[m] = leftY+ly | 0;
+				p.marksLeftBottomX[m] = rightX-lx | 0;
+				p.marksLeftBottomY[m] = rightY-ly | 0;
 
-				cx = x-sy*skiGap2;
-				cy = y+sx*skiGap2;
+				leftX = x-sy*skiGap2MinusSki2;
+				leftY = y+sx*skiGap2MinusSki2;
+				rightX = x-sy*skiGap2PlusSki2,
+				rightY = y+sx*skiGap2PlusSki2,
 
-				p.marksRightTopX[m] = cx+lx;
-				p.marksRightTopY[m] = cy+ly;
-				p.marksRightBottomX[m] = cx-lx;
-				p.marksRightBottomY[m] = cy-ly;
+				p.marksRightTopX[m] = leftX+lx | 0;
+				p.marksRightTopY[m] = leftY+ly | 0;
+				p.marksRightBottomX[m] = rightX-lx | 0;
+				p.marksRightBottomY[m] = rightY-ly | 0;
 
 				++p.mark;
 			}
@@ -164,6 +168,12 @@ function drawObjects( ctx, left, top, upsideDown, player )
 		else
 			sprite = sprites.tree;
 
+		if( x > width ||
+			x < 0 ||
+			y > height ||
+			y < 0 )
+			continue;
+
 		var cx = sprite.centerX,
 			cy = sprite.centerY;
 
@@ -188,15 +198,18 @@ function drawMarks( ctx, left, top )
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			l = p.mark,
+			l = p.mark-1,
 			topX = p.marksLeftTopX,
 			topY = p.marksLeftTopY,
 			bottomX = p.marksLeftBottomX,
 			bottomY = p.marksLeftBottomY;
 
-		for( var s = 1; s--; )
+		if( !l )
+			continue;
+
+		for( var s = 2; s--; )
 		{
-			var m = l,
+			/*var m = l,
 				set = false;
 
 			ctx.beginPath();
@@ -228,9 +241,42 @@ function drawMarks( ctx, left, top )
 			} while( ++m < l );
 
 			ctx.closePath();
-			ctx.fill();
+			ctx.fill();*/
 
-			if( s )
+			for( var m = l; ; )
+			{
+				var next = m,
+					y;
+
+				if( --next < 0 )
+					break;
+
+				ctx.beginPath();
+
+				ctx.moveTo(
+					topX[m]-left,
+					topY[m]-top );
+				ctx.lineTo(
+					bottomX[m]-left,
+					bottomY[m]-top );
+
+				ctx.lineTo(
+					bottomX[next]-left,
+					(y = bottomY[next]-top) );
+				ctx.lineTo(
+					topX[next]-left,
+					topY[next]-top );
+
+				ctx.closePath();
+				ctx.fill();
+
+				if( y > height )
+					break;
+
+				m = next;
+			}
+
+			if( !s )
 				break;
 
 			topX = p.marksRightTopX;
@@ -282,24 +328,34 @@ function turn( player, mod )
 
 function input()
 {
-	var step = .05;
+	var step = .05,
+		p;
 
-	if( keysDown[65] )
-		turn( players[0], -step );
-	else if( keysDown[68] )
-		turn( players[0], step );
+	if( !(p = players[0]).crashed )
+	{
+		if( keysDown[65] )
+			turn( p, -step );
+		else if( keysDown[68] )
+			turn( p, step );
+	}
 
-	if( playersLength > 1 )
+	if( playersLength > 1 &&
+		!(p = players[1]).crashed )
+	{
 		if( keysDown[37] )
-			turn( players[1], -step );
+			turn( p, -step );
 		else if( keysDown[39] )
-			turn( players[1], step );
+			turn( p, step );
+	}
 
-	if( playersLength > 2 )
+	if( playersLength > 2 &&
+		!(p = players[2]).crashed )
+	{
 		if( keysDown[72] )
-			turn( players[2], -step );
+			turn( p, -step );
 		else if( keysDown[76] )
-			turn( players[2], step );
+			turn( p, step );
+	}
 
 	for( var n = pointerLength; n--; )
 	{
@@ -307,7 +363,10 @@ function input()
 			y = pointerY[n],
 			p = players[x/width | 0];
 
-		turn( p, step/centerX*(centerX-(x % width)) );
+		if( p.crashed )
+			continue;
+
+		turn( p, -step/centerX*(centerX-(x % width)) );
 	}
 }
 
@@ -499,9 +558,16 @@ function reset()
 		rh = ref.height;
 
 	slopeWidth = rw*playersLength*3;
-	slopeHeight = sprites.tree.height*30;
-	skiWidth = rw*.1 | 0;
-	skiGap2 = rw*.0398 | 0;
+	slopeHeight = sprites.tree.height*50;
+
+	if( (skiWidth = rw*.1 | 0) < 2 )
+		skiWidth = 2;
+
+	if( (skiGap2 = rw*.0398 | 0) < 1 )
+		skiGap2 = 1;
+
+	skiGap2PlusSki2 = skiGap2+(skiWidth >> 1);
+	skiGap2MinusSki2 = skiGap2-(skiWidth >> 1);
 	skiLength2 = rh >> 1;
 
 	objectsLength = 0;
