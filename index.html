@@ -100,43 +100,44 @@ function drawPlayers( ctx, left, top, upsideDown )
 
 		ctx.drawImage( sprite, x, y );
 
-		if( !p.crashed &&
-			!--p.marksTimer )
+		if( p.crashed )
+			continue;
+
+		x = p.x;
+		y = p.y;
+
+		var m = p.mark,
+			sx = p.sx,
+			sy = p.sy,
+			lx = sx*skiLength2,
+			ly = sy*skiLength2,
+			leftX = x+sy*skiGap2PlusSki2,
+			leftY = y+sx*skiGap2PlusSki2,
+			rightX = x+sy*skiGap2MinusSki2,
+			rightY = y+sx*skiGap2MinusSki2;
+
+		p.marksLeftTopX[m] = leftX+lx | 0;
+		p.marksLeftTopY[m] = leftY+ly | 0;
+		p.marksLeftBottomX[m] = rightX-lx | 0;
+		p.marksLeftBottomY[m] = rightY-ly | 0;
+
+		leftX = x-sy*skiGap2MinusSki2;
+		leftY = y+sx*skiGap2MinusSki2;
+		rightX = x-sy*skiGap2PlusSki2,
+		rightY = y+sx*skiGap2PlusSki2,
+
+		p.marksRightTopX[m] = leftX+lx | 0;
+		p.marksRightTopY[m] = leftY+ly | 0;
+		p.marksRightBottomX[m] = rightX-lx | 0;
+		p.marksRightBottomY[m] = rightY-ly | 0;
+
+		if( !--p.marksTimer )
 		{
-			x = p.x;
-			y = p.y;
-
-			var sx = p.sx,
-				sy = p.sy,
-				leftX = x+sy*skiGap2PlusSki2,
-				leftY = y+sx*skiGap2PlusSki2;
-
 			if( leftX != p.marksLastX ||
 				leftY != p.marksLastY )
 			{
-				var m = p.mark,
-					rightX = x+sy*skiGap2MinusSki2,
-					rightY = y+sx*skiGap2MinusSki2,
-					lx = sx*skiLength2,
-					ly = sy*skiLength2;
-
 				p.marksLastX = leftX;
 				p.marksLastY = leftY;
-
-				p.marksLeftTopX[m] = leftX+lx | 0;
-				p.marksLeftTopY[m] = leftY+ly | 0;
-				p.marksLeftBottomX[m] = rightX-lx | 0;
-				p.marksLeftBottomY[m] = rightY-ly | 0;
-
-				leftX = x-sy*skiGap2MinusSki2;
-				leftY = y+sx*skiGap2MinusSki2;
-				rightX = x-sy*skiGap2PlusSki2,
-				rightY = y+sx*skiGap2PlusSki2,
-
-				p.marksRightTopX[m] = leftX+lx | 0;
-				p.marksRightTopY[m] = leftY+ly | 0;
-				p.marksRightBottomX[m] = rightX-lx | 0;
-				p.marksRightBottomY[m] = rightY-ly | 0;
 
 				++p.mark;
 			}
