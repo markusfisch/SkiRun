@@ -46,6 +46,10 @@ var requestAnimFrame =
 	height,
 	centerX,
 	centerY,
+	viewLeft,
+	viewRight,
+	viewTop,
+	viewBottom,
 	skierScreenTop,
 	skierScreenBottom,
 	pointerLength = 0,
@@ -57,6 +61,10 @@ var requestAnimFrame =
 	factor,
 	objectsLength,
 	objects = [],
+	flakesLength,
+	flakes = [],
+	flake,
+	equipmentLength = 4,
 	sprites = {},
 	mobile = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|blackberry|webos/i ),
@@ -76,7 +84,67 @@ var requestAnimFrame =
 	skiGap2PlusSki2,
 	skiGap2MinusSki2,
 	skiLength2,
-	marksTimerMax = 15;
+	marksFrequency = 240,
+	flakeFrequency = 10,
+	leanFactor = 3/Math.PI2;
+
+function drawFlakes( ctx, left, top, upsideDown )
+{
+	for( var n = flakesLength; n--; )
+	{
+		var f = flakes[n];
+
+		if( !f.life )
+			continue;
+
+		f.x += f.vx*factor;
+		f.y += f.vy*factor;
+
+		var x = f.x-left,
+			y = f.y-top;
+
+		if( upsideDown )
+			y = height-y;
+
+		var sprite = f.sprite;
+
+		x -= sprite.centerX;
+		y -= sprite.centerY;
+
+		--f.life;
+		ctx.drawImage( sprite, x, y );
+	}
+}
+
+function drawEquipment( equipment, ctx, left, top, upsideDown )
+{
+	for( var n = equipmentLength; n--; )
+	{
+		var e = equipment[n],
+			x = e.x-left,
+			y = e.y-top,
+			vx = e.vx,
+			vy = e.vy;
+
+		vx -= vx*maxSpeedFactor;
+		vy -= vy*maxSpeedFactor;
+
+		e.x += vx;
+		e.y += vy;
+		e.vx = vx;
+		e.vy = vy;
+
+		if( Math.max( Math.abs( vx ), Math.abs( vy ) ) > .2 )
+			e.angle = (e.angle+.03*(vx*vy)+Math.TAU) % Math.TAU;
+
+		var sprite = e.sprite[indexFactor*e.angle | 0];
+
+		x -= sprite.centerX;
+		y -= sprite.centerY;
+
+		ctx.drawImage( sprite, x, y );
+	}
+}
 
 function drawPlayers( ctx, left, top, upsideDown )
 {
@@ -93,7 +161,15 @@ function drawPlayers( ctx, left, top, upsideDown )
 			y = height-y;
 		}
 
-		var sprite = p.sprite[indexFactor*heading | 0];
+		if( p.crashed )
+			drawEquipment(
+				p.equipment,
+				ctx,
+				left,
+				top,
+				upsideDown );
+
+		var sprite = p.sprites[p.sprite][indexFactor*heading | 0];
 
 		x -= sprite.centerX;
 		y -= sprite.centerY;
@@ -131,7 +207,7 @@ function drawPlayers( ctx, left, top, upsideDown )
 		p.marksRightBottomX[m] = rightX-lx | 0;
 		p.marksRightBottomY[m] = rightY-ly | 0;
 
-		if( !--p.marksTimer )
+		if( now-p.lastMark > marksFrequency )
 		{
 			/*if( leftX != p.marksLastX ||
 				leftY != p.marksLastY )
@@ -150,8 +226,36 @@ function drawPlayers( ctx, left, top, upsideDown )
 				++p.mark;
 			}
 
-			p.marksTimer = marksTimerMax;
+			p.lastMark = now;
 		}
+	}
+}
+
+function crash( player )
+{
+	if( player.crashed )
+		return;
+
+	player.crashed = true;
+	player.sprite = 7;
+
+	var equipment = player.equipment;
+
+	for( var n = equipmentLength; n--; )
+	{
+		var e = equipment[n],
+			vx = player.vx,
+			vy = player.vy,
+			r = Math.random(),
+			f = .75+r*.5;
+
+		r = (r-.5)*skiLength2;
+
+		e.x = player.x+r;
+		e.y = player.y+r;
+		e.vx = vx*f;
+		e.vy = vy*f;
+		e.angle = (player.skiAngle+r+Math.TAU) % Math.TAU;
 	}
 }
 
@@ -177,10 +281,10 @@ function drawObjects( ctx, left, top, upsideDown, player )
 		else
 			sprite = sprites.tree;
 
-		if( x > width ||
-			x < 0 ||
-			y > height ||
-			y < 0 )
+		if( x > viewRight ||
+			x < viewLeft ||
+			y > viewBottom ||
+			y < viewTop )
 			continue;
 
 		var cx = sprite.centerX,
@@ -191,7 +295,7 @@ function drawObjects( ctx, left, top, upsideDown, player )
 			py <= oy+cy &&
 			px >= ox-cx &&
 			px <= ox+cx )
-			player.crashed = true;
+			crash( player );
 
 		x -= cx;
 		y -= cy;
@@ -313,26 +417,16 @@ function draw()
 		ctx.fillStyle = n & 1 ? "#d5f6ff" : "#c5e6ef";
 		ctx.fillRect( 0, 0, width, height );
 
-		drawMarks( ctx, left, top );
+		//drawMarks( ctx, left, top );
 		drawObjects( ctx, left, top, upsideDown, p );
+		drawFlakes( ctx, left, top, upsideDown );
 		drawPlayers( ctx, left, top, upsideDown );
 	}
 }
 
 function turn( player, mod )
 {
-	var h = player.skiAngle;
-
-	h += mod;
-
-	if( h < 0 )
-		h += Math.TAU;
-	else if( h > Math.TAU )
-		h -= Math.TAU;
-
-	h %= Math.TAU;
-
-	player.skiAngle = h;
+	player.skiAngle = (player.skiAngle+mod+Math.TAU) % Math.TAU;
 }
 
 function input()
@@ -379,89 +473,205 @@ function input()
 	}
 }
 
-function ski()
+function spray( x, y, vx, vy )
 {
-	var alive = 0;
+	var f = flakes[flake];
+
+	f.x = x;
+	f.y = y;
+	f.vx = vx;
+	f.vy = vy;
+	f.life = 100;
+
+	if( ++flake >= flakesLength )
+		flake = 0;
+}
+
+function roll( p )
+{
+	var vx = p.vx,
+		vy = p.vy,
+		speed = Math.max( Math.abs( vx ), Math.abs( vy ) );
+
+	if( speed < .1 )
+	{
+		p.finished = true;
+		return;
+	}
+
+	vx -= vx*maxSpeedFactor;
+	vy -= vy*maxSpeedFactor;
+
+	p.x += vx;
+	p.y += vy;
+	p.vx = vx;
+	p.vy = vy;
+	p.skiAngle = (p.skiAngle+.03*(vx+vy)+Math.TAU) % Math.TAU;
+
+	if( speed > .8 &&
+		now-p.lastFlake > flakeFrequency )
+	{
+		var r = Math.random(),
+			f = r*.25;
+
+		vx *= f;
+		vy *= f;
+		r = (r-.5)*skiLength2;
+
+		spray( p.x+r, p.y+r, -vx, -vy );
+
+		p.lastFlake = now;
+	}
+}
+
+function ski( p )
+{
+	var skiAngle = p.skiAngle,
+		sx = (p.sx = Math.cos( skiAngle )),
+		sy = (p.sy = Math.sin( skiAngle )),
+		vx = p.vx,
+		vy = p.vy,
+		vd = (Math.atan2( vy, vx )-skiAngle+Math.TAU) % Math.TAU,
+		a = gravityVector-skiAngle,
+		d = (a+Math.TAU) % Math.TAU,
+		x,
+		y;
+
+	// lean into curve
+	if( vd > Math.PI )
+		vd -= Math.TAU;
+
+	p.lean += (vd*leanFactor-p.lean)*.1*factor;
+	p.sprite = 3+Math.max( -3, Math.min( 3, Math.ceil( p.lean ) ) );
+
+	// difference from -PI to +PI
+	if( d > Math.PI )
+		d -= Math.TAU;
+
+	var r = Math.abs( d );
+
+	// translate maximum to PI/2
+	if( d > Math.PI2 )
+		d = Math.PI2-d+Math.PI2;
+	else if( d < -Math.PI2 )
+		d = -Math.PI2-d+-Math.PI2;
+
+	if( d > 0 )
+	{
+		x = sy;
+		y = -sx;
+	}
+	else
+	{
+		x = -sy;
+		y = sx;
+	}
+
+	var l = gravityLength*
+		Math.sin( Math.abs( d ) )/
+		Math.SINPI2;
+
+	x *= l;
+	y *= l;
+
+	x += gravityX;
+	y += gravityY;
+
+	// moving backwards should be slower
+	if( r > Math.PI2 )
+	{
+		r = 1-reverseFactor*(r-Math.PI2);
+		x *= r;
+		y *= r;
+	}
+
+	// timing
+	x *= factor;
+	y *= factor;
+
+	vx += x;
+	vy += y;
+
+	// resistance
+	vx -= vx*maxSpeedFactor;
+	vy -= vy*maxSpeedFactor;
+
+	p.x += vx;
+	p.y += vy;
+	p.vx = vx;
+	p.vy = vy;
+
+	if( now-p.lastFlake > flakeFrequency &&
+		Math.abs( vd ) > .5 &&
+		(vx || vy) )
+	{
+		var r = Math.random(),
+			f = r*.25,
+			l = skiLength2*r;
+
+		vx *= f;
+		vy *= f;
+
+		x = p.x-sx*l;
+		y = p.y-sy*l;
+
+		if( vd > 0 )
+			spray( x, y, -vy, vx );
+		else if( vd < 0 )
+			spray( x, y, vy, -vx );
+
+		p.lastFlake = now;
+	}
+}
+
+function move()
+{
+	var moving = 0;
 
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n];
 
-		if( p.crashed ||
+		if( p.finished ||
 			p.y < 0 )
+		{
+			p.finished = true;
 			continue;
-
-		var skiAngle = p.skiAngle,
-			sx = (p.sx = Math.cos( skiAngle )),
-			sy = (p.sy = Math.sin( skiAngle )),
-			vx = p.vx,
-			vy = p.vy,
-			a = gravityVector-skiAngle,
-			d = (a+Math.TAU) % Math.TAU,
-			x,
-			y;
-
-		// difference from -PI to +PI
-		if( d > Math.PI )
-			d -= Math.TAU;
-
-		var r = Math.abs( d );
-
-		// translate maximum to PI/2
-		if( d > Math.PI2 )
-			d = Math.PI2-d+Math.PI2;
-		else if( d < -Math.PI2 )
-			d = -Math.PI2-d+-Math.PI2;
-
-		if( d > 0 )
-		{
-			x = sy;
-			y = -sx;
 		}
+
+		if( p.crashed )
+			roll( p );
 		else
-		{
-			x = -sy;
-			y = sx;
-		}
+			ski( p );
 
-		var l = gravityLength*
-			Math.sin( Math.abs( d ) )/
-			Math.SINPI2;
-
-		x *= l;
-		y *= l;
-
-		x += gravityX;
-		y += gravityY;
-
-		// moving backwards should be slower
-		if( r > Math.PI2 )
-		{
-			r = 1-reverseFactor*(r-Math.PI2);
-			x *= r;
-			y *= r;
-		}
-
-		// timing
-		x *= factor;
-		y *= factor;
-
-		vx += x;
-		vy += y;
-
-		// resistance
-		vx -= vx*maxSpeedFactor;
-		vy -= vy*maxSpeedFactor;
-
-		p.x += vx;
-		p.y += vy;
-		p.vx = vx;
-		p.vy = vy;
-
-		++alive;
+		++moving;
 	}
 
-	return alive;
+	// check if players collide
+	for( var a = 0; a < playersLength; )
+	{
+		var p1 = players[a];
+
+		if( p1.crashed )
+		{
+			++a;
+			continue;
+		}
+
+		for( var b = ++a; b < playersLength; ++b )
+		{
+			var p2 = players[b];
+
+			if( Math.abs( p1.x-p2.x ) < skiLength2 &&
+				Math.abs( p1.y-p2.y ) < skiLength2 )
+			{
+				crash( p1 );
+				crash( p2 );
+			}
+		}
+	}
+
+	return moving;
 }
 
 function run()
@@ -472,14 +682,8 @@ function run()
 
 	input();
 
-	if( !ski() )
-	{
-var msg = "";
-for( var n = playersLength; n--; )
-	msg += "player #"+n+": "+players[n].mark+"\n";
-alert( msg );
-		return;
-	}
+	if( !move() )
+		reset();
 
 	draw();
 
@@ -573,7 +777,7 @@ function reset()
 		rh = ref.height;
 
 	slopeWidth = rw*playersLength*3;
-	slopeHeight = sprites.tree.height*50;
+	slopeHeight = sprites.tree.height*70;
 
 	if( (skiWidth = rw*.1 | 0) < 2 )
 		skiWidth = 2;
@@ -602,6 +806,15 @@ function reset()
 			sprite: sprites.tree };
 	}
 
+	flakesLength = 100;
+	flakes = [];
+	flake = 0;
+
+	for( var n = flakesLength; n--; )
+		flakes[n] = {
+			life: 0,
+			sprite: sprites["flake"+(1+(Math.random()*3 | 0))] };
+
 	var cell = slopeWidth/playersLength,
 		margin = rh << 1,
 		x = cell >> 1,
@@ -618,14 +831,20 @@ function reset()
 
 		p.x = x;
 		p.y = y;
+		p.crashed = false;
+		p.finished = false;
 
 		p.vx =
 		p.vy =
 		p.sx =
 		p.sy =
+		p.lean =
+		p.sprite =
 		p.skiAngle = 0;
 
-		p.marksTimer = marksTimerMax;
+		p.lastMark =
+		p.lastFlake = 0;
+
 		p.mark =
 		p.marksLastX =
 		p.marksLastY = 0;
@@ -638,8 +857,26 @@ function reset()
 		p.marksRightBottomX = [];
 		p.marksRightBottomY = [];
 
-		p.sprite = sprites[
-			(n & 1 ? "skierYellow" : "skierBlue")+"Straight"];
+		p.equipment = [
+			{ sprite: sprites.pole },
+			{ sprite: sprites.pole },
+			{ sprite: sprites.ski },
+			{ sprite: sprites.ski }];
+
+		var base = n & 1 ? "skierYellow" : "skierBlue",
+			actions = [
+				"LeanRight3",
+				"LeanRight2",
+				"LeanRight1",
+				"Straight",
+				"LeanLeft1",
+				"LeanLeft2",
+				"LeanLeft3",
+				"Crashed"];
+
+		p.sprites = [];
+		for( var i = 0, l = actions.length; i < l; ++i )
+			p.sprites[i] = sprites[base+actions[i]];
 	}
 }
 
@@ -648,7 +885,7 @@ function scale( styleWidth )
 	var frames = {
 			skierBlueStraight: {
 				rotate: true,
-				frame: {/*skier-blue-straight*/x:1543,y:2,w:103,h:222}
+				frame: {/*skier-blue-straight*/x:1436,y:2,w:103,h:222}
 			},
 			skierBlueJump: {
 				rotate: true,
@@ -682,10 +919,8 @@ function scale( styleWidth )
 				frame: {/*skier-blue-lean3-left*/x:400,y:2,w:122,h:257}
 			},
 			skierBlueCrashed: {
-				frame: {/*skier-blue-crashed*/x:1891,y:2,w:130,h:173}
-			},
-			skierBlueBackwards: {
-				frame: {/*skier-blue-backwards*/x:1891,y:2,w:130,h:173}
+				rotate: true,
+				frame: {/*skier-blue-crashed*/x:1677,y:2,w:130,h:173}
 			},
 			skierYellowStraight: {
 				rotate: true,
@@ -723,10 +958,16 @@ function scale( styleWidth )
 				frame: {/*skier-yellow-lean3-left*/x:274,y:2,w:122,h:257}
 			},
 			skierYellowCrashed: {
-				frame: {/*skier-yellow-crashed*/x:1757,y:2,w:130,h:173}
+				rotate: true,
+				frame: {/*skier-yellow-crashed*/x:1543,y:2,w:130,h:173}
 			},
-			skierYellowBackwards: {
-				frame: {/*skier-yellow-backwards*/x:1757,y:2,w:130,h:173}
+			pole: {
+				rotate: true,
+				frame: {/*pole*/x:1828,y:2,w:13,h:117}
+			},
+			ski: {
+				rotate: true,
+				frame: {/*ski*/x:1811,y:2,w:13,h:157}
 			},
 			tree: {
 				frame: {/*tree*/x:526,y:2,w:195,h:256}
@@ -735,8 +976,17 @@ function scale( styleWidth )
 				upsideDown: true,
 				frame: {/*tree*/x:526,y:2,w:195,h:256}
 			},
-			hump: {
-				frame: {/*hump*/x:2,y:2,w:256,h:256}
+			flake1: {
+				frame: {/*flake1*/x:1961,y:2,w:26,h:26}
+			},
+			flake2: {
+				frame: {/*flake2*/x:1927,y:2,w:30,h:30}
+			},
+			flake3: {
+				frame: {/*flake3*/x:1889,y:2,w:34,h:34}
+			},
+			flake4: {
+				frame: {/*flake4*/x:1845,y:2,w:40,h:40}
 			}
 		},
 		step = Math.TAU/orientationsLength,
@@ -843,6 +1093,15 @@ function scale( styleWidth )
 			sprites[name] = c;
 		}
 	}
+
+	var sprite = sprites.tree,
+		w = sprite.width,
+		h = sprite.height;
+
+	viewLeft = -w;
+	viewRight = width+w;
+	viewTop = -h;
+	viewBottom = height+h;
 }
 
 function resize()
@@ -946,6 +1205,7 @@ function init()
 	e.onmousedown = pointerDown;
 	e.onmousemove = pointerMove;
 	e.onmouseup = pointerUp;
+	e.onmouseout = pointerUp;
 
 	if( "ontouchstart" in e )
 	{
@@ -954,12 +1214,7 @@ function init()
 		e.ontouchend = pointerUp;
 	}
 
-// Mr. Doob's Stats
-function stats()
-{
-var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);
-}
-stats();
+function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();
 
 	last = new Date().getTime()-16;
 	run();
