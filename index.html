@@ -133,11 +133,19 @@ function drawPlayers( ctx, left, top, upsideDown )
 
 		if( !--p.marksTimer )
 		{
-			if( leftX != p.marksLastX ||
+			/*if( leftX != p.marksLastX ||
 				leftY != p.marksLastY )
 			{
 				p.marksLastX = leftX;
 				p.marksLastY = leftY;
+
+				++p.mark;
+			}*/
+			if( sx != p.marksLastX ||
+				sy != p.marksLastY )
+			{
+				p.marksLastX = sx;
+				p.marksLastY = sy;
 
 				++p.mark;
 			}
@@ -199,7 +207,7 @@ function drawMarks( ctx, left, top )
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			l = p.mark-1,
+			l = p.mark,
 			topX = p.marksLeftTopX,
 			topY = p.marksLeftTopY,
 			bottomX = p.marksLeftBottomX,
@@ -465,7 +473,13 @@ function run()
 	input();
 
 	if( !ski() )
+	{
+var msg = "";
+for( var n = playersLength; n--; )
+	msg += "player #"+n+": "+players[n].mark+"\n";
+alert( msg );
 		return;
+	}
 
 	draw();
 
