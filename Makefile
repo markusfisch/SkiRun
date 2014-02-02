@@ -11,4 +11,4 @@ up: atlas.png
 	rsync $(OPTIONS) $(OBJECTS) $(PRODUCTION)
 
 atlas.png: img/*
-	PREFER_SMALLER=1 BORDER=2 mkatlas img/* | patchatlas index.html
+	BORDER=2 mkatlas img/* | patchatlas index.html

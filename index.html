@@ -116,6 +116,11 @@ function drawFlakes( ctx, left, top, upsideDown )
 	}
 }
 
+function turnAround( angle )
+{
+	return (Math.PI-angle+Math.TAU) % Math.TAU;
+}
+
 function drawEquipment( equipment, ctx, left, top, upsideDown )
 {
 	for( var n = equipmentLength; n--; )
@@ -126,6 +131,17 @@ function drawEquipment( equipment, ctx, left, top, upsideDown )
 			vx = e.vx,
 			vy = e.vy;
 
+		if( Math.max( Math.abs( vx ), Math.abs( vy ) ) > .2 )
+			e.angle = (e.angle+.03*(vx*vy)+Math.TAU) % Math.TAU;
+
+		var angle = e.angle;
+
+		if( upsideDown )
+		{
+			angle = turnAround( angle );
+			y = height-y;
+		}
+
 		vx -= vx*maxSpeedFactor;
 		vy -= vy*maxSpeedFactor;
 
@@ -134,10 +150,7 @@ function drawEquipment( equipment, ctx, left, top, upsideDown )
 		e.vx = vx;
 		e.vy = vy;
 
-		if( Math.max( Math.abs( vx ), Math.abs( vy ) ) > .2 )
-			e.angle = (e.angle+.03*(vx*vy)+Math.TAU) % Math.TAU;
-
-		var sprite = e.sprite[indexFactor*e.angle | 0];
+		var sprite = e.sprite[indexFactor*angle | 0];
 
 		x -= sprite.centerX;
 		y -= sprite.centerY;
@@ -157,7 +170,7 @@ function drawPlayers( ctx, left, top, upsideDown )
 
 		if( upsideDown )
 		{
-			heading = (heading+Math.PI) % Math.TAU;
+			heading = turnAround( heading );
 			y = height-y;
 		}
 
@@ -236,6 +249,7 @@ function crash( player )
 	if( player.crashed )
 		return;
 
+	player.controllable = false;
 	player.crashed = true;
 	player.sprite = 7;
 
@@ -406,7 +420,7 @@ function draw()
 	{
 		var p = players[n],
 			ctx = p.ctx,
-			upsideDown = p.upsideDown,
+			ud = p.upsideDown,
 			x = p.x,
 			y = p.y,
 			left = x-centerX,
@@ -418,9 +432,9 @@ function draw()
 		ctx.fillRect( 0, 0, width, height );
 
 		//drawMarks( ctx, left, top );
-		drawObjects( ctx, left, top, upsideDown, p );
-		drawFlakes( ctx, left, top, upsideDown );
-		drawPlayers( ctx, left, top, upsideDown );
+		drawObjects( ctx, left, top, ud, p );
+		drawFlakes( ctx, left, top, ud );
+		drawPlayers( ctx, left, top, ud );
 	}
 }
 
@@ -434,7 +448,7 @@ function input()
 	var step = .05,
 		p;
 
-	if( !(p = players[0]).crashed )
+	if( (p = players[0]).controllable )
 	{
 		if( keysDown[65] )
 			turn( p, -step );
@@ -443,7 +457,7 @@ function input()
 	}
 
 	if( playersLength > 1 &&
-		!(p = players[1]).crashed )
+		(p = players[1]).controllable )
 	{
 		if( keysDown[37] )
 			turn( p, -step );
@@ -452,7 +466,7 @@ function input()
 	}
 
 	if( playersLength > 2 &&
-		!(p = players[2]).crashed )
+		(p = players[2]).controllable )
 	{
 		if( keysDown[72] )
 			turn( p, -step );
@@ -466,7 +480,7 @@ function input()
 			y = pointerY[n],
 			p = players[x/width | 0];
 
-		if( p.crashed )
+		if( !p.controllable )
 			continue;
 
 		turn( p, -step/centerX*(centerX-(x % width)) );
@@ -495,7 +509,7 @@ function roll( p )
 
 	if( speed < .1 )
 	{
-		p.finished = true;
+		p.stopped = true;
 		return;
 	}
 
@@ -542,7 +556,7 @@ function ski( p )
 		vd -= Math.TAU;
 
 	p.lean += (vd*leanFactor-p.lean)*.1*factor;
-	p.sprite = 3+Math.max( -3, Math.min( 3, Math.ceil( p.lean ) ) );
+	p.sprite = 3+Math.max( -3, Math.min( 3, Math.round( p.lean ) ) );
 
 	// difference from -PI to +PI
 	if( d > Math.PI )
@@ -632,17 +646,27 @@ function move()
 	{
 		var p = players[n];
 
-		if( p.finished ||
-			p.y < 0 )
-		{
-			p.finished = true;
+		if( p.stopped )
 			continue;
-		}
 
 		if( p.crashed )
 			roll( p );
 		else
+		{
+			if( p.y < 0 )
+			{
+				if( p.controllable )
+					p.controllable = false;
+
+				if( Math.abs( p.vx )+Math.abs( p.vy ) > .3 &&
+					p.skiAngle > Math.PI2 )
+					turn( p, .1 );
+				else
+					p.stopped = true;
+			}
+
 			ski( p );
+		}
 
 		++moving;
 	}
@@ -831,8 +855,9 @@ function reset()
 
 		p.x = x;
 		p.y = y;
+		p.controllable = true;
 		p.crashed = false;
-		p.finished = false;
+		p.stopped = false;
 
 		p.vx =
 		p.vy =
@@ -885,7 +910,7 @@ function scale( styleWidth )
 	var frames = {
 			skierBlueStraight: {
 				rotate: true,
-				frame: {/*skier-blue-straight*/x:1436,y:2,w:103,h:222}
+				frame: {/*skier-blue-straight*/x:1453,y:2,w:103,h:222}
 			},
 			skierBlueJump: {
 				rotate: true,
@@ -920,11 +945,11 @@ function scale( styleWidth )
 			},
 			skierBlueCrashed: {
 				rotate: true,
-				frame: {/*skier-blue-crashed*/x:1677,y:2,w:130,h:173}
+				frame: {/*skier-blue-crashed*/x:1694,y:2,w:130,h:173}
 			},
 			skierYellowStraight: {
 				rotate: true,
-				frame: {/*skier-yellow-straight*/x:1329,y:2,w:103,h:222}
+				frame: {/*skier-yellow-straight*/x:1346,y:2,w:103,h:222}
 			},
 			skierYellowJump: {
 				rotate: true,
@@ -959,7 +984,7 @@ function scale( styleWidth )
 			},
 			skierYellowCrashed: {
 				rotate: true,
-				frame: {/*skier-yellow-crashed*/x:1543,y:2,w:130,h:173}
+				frame: {/*skier-yellow-crashed*/x:1560,y:2,w:130,h:173}
 			},
 			pole: {
 				rotate: true,
@@ -967,7 +992,7 @@ function scale( styleWidth )
 			},
 			ski: {
 				rotate: true,
-				frame: {/*ski*/x:1811,y:2,w:13,h:157}
+				frame: {/*ski*/x:1329,y:2,w:13,h:222}
 			},
 			tree: {
 				frame: {/*tree*/x:526,y:2,w:195,h:256}
@@ -1126,7 +1151,7 @@ function resize()
 
 	centerX = width >> 1;
 	centerY = height >> 1;
-	maxSpeedFactor = 17.25/Math.min( w, h );
+	maxSpeedFactor = 30/h;
 
 	for( var n = playersLength; n--; )
 	{
