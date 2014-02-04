@@ -556,7 +556,9 @@ function ski( p )
 		vd -= Math.TAU;
 
 	p.lean += (vd*leanFactor-p.lean)*.1*factor;
-	p.sprite = 3+Math.max( -3, Math.min( 3, Math.round( p.lean ) ) );
+	/*p.sprite = 3+Math.max( -3, Math.min( 3, Math.round( p.lean ) ) );*/
+	p.sprite = 3+Math.max( -3, Math.min( 3, Math.round(
+		p.lean+(p.lean > 0 ? .3 : -.3) ) ) );
 
 	// difference from -PI to +PI
 	if( d > Math.PI )
@@ -616,7 +618,7 @@ function ski( p )
 	p.vy = vy;
 
 	if( now-p.lastFlake > flakeFrequency &&
-		Math.abs( vd ) > .5 &&
+		Math.abs( vd ) > .4 &&
 		(vx || vy) )
 	{
 		var r = Math.random(),
@@ -800,6 +802,8 @@ function reset()
 		rw = ref.width,
 		rh = ref.height;
 
+	maxSpeedFactor = 3/rh;
+
 	slopeWidth = rw*playersLength*3;
 	slopeHeight = sprites.tree.height*70;
 
@@ -818,9 +822,21 @@ function reset()
 
 	for( var y = 1-(1/slopeHeight*rh*4);
 		y > 0;
-		y -= Math.random()*.05, ++objectsLength )
+		y -= Math.random()*.05 )
 	{
 		var x = Math.random();
+
+		objects[objectsLength] = {
+			x: x*.1*slopeWidth | 0,
+			y: y*slopeHeight | 0,
+			sprite: sprites.tree };
+		++objectsLength;
+
+		objects[objectsLength] = {
+			x: (.9+x*.1)*slopeWidth | 0,
+			y: y*slopeHeight | 0,
+			sprite: sprites.tree };
+		++objectsLength;
 
 		objects[objectsLength] = {
 			x: (objectsLength % 2 ?
@@ -828,6 +844,7 @@ function reset()
 				x)*slopeWidth | 0,
 			y: y*slopeHeight | 0,
 			sprite: sprites.tree };
+		++objectsLength;
 	}
 
 	flakesLength = 100;
@@ -864,8 +881,9 @@ function reset()
 		p.sx =
 		p.sy =
 		p.lean =
-		p.sprite =
-		p.skiAngle = 0;
+		p.sprite = 0;
+
+		p.skiAngle = -Math.PI2;
 
 		p.lastMark =
 		p.lastFlake = 0;
@@ -1015,8 +1033,11 @@ function scale( styleWidth )
 			}
 		},
 		step = Math.TAU/orientationsLength,
-		scale = Math.min( width, height )*.075/
+		scale = Math.min( width, height )*.1/
 			frames.skierBlueStraight.frame.w;
+
+	if( scale > 1 )
+		scale = 1;
 
 	sprites = {};
 
@@ -1151,7 +1172,6 @@ function resize()
 
 	centerX = width >> 1;
 	centerY = height >> 1;
-	maxSpeedFactor = 30/h;
 
 	for( var n = playersLength; n--; )
 	{
