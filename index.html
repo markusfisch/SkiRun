@@ -11,54 +11,15 @@ body
 	background: #d5f6ff;
 	margin: 0; padding: 0;
 	overflow: hidden;
-	font: 20pt sans-serif; color: #25464f;
-	letter-spacing: .1em;
-	line-height: 150%;
-	font-style: italic;
-	font-weight: bold;
 }
 
 canvas
 {
 	position: fixed;
-	z-index: 1;
-}
-
-.Overlay
-{
-	position: fixed;
-	left: 0; top: 0;
-	right: 0; bottom: 0;
-	z-index: 2;
-	padding: 1em;
-	background: #fff;
-	opacity: .8;
-}
-
-.Message
-{
-	margin: 20% auto; padding: 0;
-	max-width: 30em;
-}
-
-#LoadingOverlay
-{
-	text-align: center;
-}
-
-#LoadBar
-{
-	max-width: 30em;
-	height: 2em;
-	border: 1px solid #fff;
 }
 
 </style>
 <body>
-<!--div id="LoadingOverlay" class="Overlay">
-<p id="LoadingMessage" class="Message">Loading</p>
-<canvas id="LoadBar">Sorry, your browser cannot do this.</canvas>
-</div -->
 <script>
 
 "use strict";
@@ -107,7 +68,7 @@ var requestAnimFrame =
 	sprites = {},
 	mobile = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|mobile|blackberry|webos/i ),
-	orientationsLength = 72,//288,//36,
+	orientationsLength = 72,
 	steepness = .2,
 	gravityVector = -Math.PI2,
 	gravityX = Math.cos( gravityVector )*steepness,
@@ -123,7 +84,7 @@ var requestAnimFrame =
 	skiGap2PlusSki2,
 	skiGap2MinusSki2,
 	skiLength2,
-	marksFrequency = 240,
+	marksFrequency = 32, //240,
 	flakeFrequency = 10,
 	leanFactor = 3/Math.PI2;
 
@@ -231,49 +192,32 @@ function drawPlayers( ctx, left, top, upsideDown )
 		if( p.crashed )
 			continue;
 
-		x = p.x;
-		y = p.y;
-
-		var m = p.mark,
-			sx = p.sx,
-			sy = p.sy,
-			lx = sx*skiLength2,
-			ly = sy*skiLength2,
-			leftX = x+sy*skiGap2PlusSki2,
-			leftY = y+sx*skiGap2PlusSki2,
-			rightX = x+sy*skiGap2MinusSki2,
-			rightY = y+sx*skiGap2MinusSki2;
-
-		p.marksLeftTopX[m] = leftX+lx | 0;
-		p.marksLeftTopY[m] = leftY+ly | 0;
-		p.marksLeftBottomX[m] = rightX-lx | 0;
-		p.marksLeftBottomY[m] = rightY-ly | 0;
-
-		leftX = x-sy*skiGap2MinusSki2;
-		leftY = y+sx*skiGap2MinusSki2;
-		rightX = x-sy*skiGap2PlusSki2,
-		rightY = y+sx*skiGap2PlusSki2,
-
-		p.marksRightTopX[m] = leftX+lx | 0;
-		p.marksRightTopY[m] = leftY+ly | 0;
-		p.marksRightBottomX[m] = rightX-lx | 0;
-		p.marksRightBottomY[m] = rightY-ly | 0;
-
 		if( now-p.lastMark > marksFrequency )
 		{
-			/*if( leftX != p.marksLastX ||
-				leftY != p.marksLastY )
-			{
-				p.marksLastX = leftX;
-				p.marksLastY = leftY;
+			x = p.x;
+			y = p.y;
 
-				++p.mark;
-			}*/
-			if( sx != p.marksLastX ||
-				sy != p.marksLastY )
+			if( x != p.marksLastX ||
+				y != p.marksLastY )
 			{
-				p.marksLastX = sx;
-				p.marksLastY = sy;
+				var m = p.mark,
+					sx = p.sx,
+					sy = p.sy,
+					leftX = x+sy*skiGap2PlusSki2,
+					leftY = y+sx*skiGap2PlusSki2,
+					rightX = x+sy*skiGap2MinusSki2,
+					rightY = y+sx*skiGap2MinusSki2;
+
+				p.marksAngle[m] = p.skiAngle;
+
+				p.marksLeftX[m] = leftX-sx | 0;
+				p.marksLeftY[m] = leftY-sy | 0;
+
+				p.marksRightX[m] = rightX-sx | 0;
+				p.marksRightY[m] = rightY-sy | 0;
+
+				p.marksLastX = x;
+				p.marksLastY = y;
 
 				++p.mark;
 			}
@@ -357,99 +301,52 @@ function drawObjects( ctx, left, top, upsideDown, player )
 	}
 }
 
-function drawMarks( ctx, left, top )
+function drawMarks( ctx, left, top, upsideDown )
 {
-return;
-	ctx.fillStyle = "#b5d6df";
+	var sprite = sprites.flake4;
 
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			l = p.mark,
-			topX = p.marksLeftTopX,
-			topY = p.marksLeftTopY,
-			bottomX = p.marksLeftBottomX,
-			bottomY = p.marksLeftBottomY;
+			l = p.mark;
 
 		if( !l )
 			continue;
 
+		var ma = p.marksAngle,
+			mx = p.marksLeftX,
+			my = p.marksLeftY;
+
 		for( var s = 2; s--; )
 		{
-			/*var m = l,
-				set = false;
-
-			ctx.beginPath();
-
-			while( m-- )
+			for( var m = l; m--; )
 			{
-				var x = topX[m]-left,
-					y = topY[m]-top;
+				var x = mx[m]-left,
+					y = my[m]-top,
+					a = (ma[m]+Math.PI2) % Math.TAU;
 
-				if( !set )
+				if( upsideDown )
 				{
-					ctx.moveTo( x, y );
-					set = true;
+					a = turnAround( a );
+					y = height-y;
 				}
-				else
-					ctx.lineTo( x, y );
 
-				if( y > height )
+				if( y < viewTop )
+					continue;
+
+				//var sprite = sprites.ski[indexFactor*a | 0];
+
+				ctx.drawImage(
+					sprite,
+					x-sprite.centerX,
+					y-sprite.centerY );
+
+				if( y > viewBottom )
 					break;
 			}
 
-			do
-			{
-				var x = bottomX[m]-left,
-					y = bottomY[m]-top;
-
-				ctx.lineTo( x, y );
-
-			} while( ++m < l );
-
-			ctx.closePath();
-			ctx.fill();*/
-
-			for( var m = l; ; )
-			{
-				var next = m,
-					y;
-
-				if( --next < 0 )
-					break;
-
-				ctx.beginPath();
-
-				ctx.moveTo(
-					topX[m]-left,
-					topY[m]-top );
-				ctx.lineTo(
-					bottomX[m]-left,
-					bottomY[m]-top );
-
-				ctx.lineTo(
-					bottomX[next]-left,
-					(y = bottomY[next]-top) );
-				ctx.lineTo(
-					topX[next]-left,
-					topY[next]-top );
-
-				ctx.closePath();
-				ctx.fill();
-
-				if( y > height )
-					break;
-
-				m = next;
-			}
-
-			if( !s )
-				break;
-
-			topX = p.marksRightTopX;
-			topY = p.marksRightTopY;
-			bottomX = p.marksRightBottomX;
-			bottomY = p.marksRightBottomY;
+			mx = p.marksRightX;
+			my = p.marksRightY;
 		}
 	}
 }
@@ -471,7 +368,7 @@ function draw()
 		ctx.fillStyle = n & 1 ? "#d5f6ff" : "#c5e6ef";
 		ctx.fillRect( 0, 0, width, height );
 
-		drawMarks( ctx, left, top );
+		drawMarks( ctx, left, top, ud );
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
@@ -595,7 +492,6 @@ function ski( p )
 		vd -= Math.TAU;
 
 	p.lean += (vd*leanFactor-p.lean)*.1*factor;
-	/*p.sprite = 3+Math.max( -3, Math.min( 3, Math.round( p.lean ) ) );*/
 	p.sprite = 3+Math.max( -3, Math.min( 3, Math.round(
 		p.lean+(p.lean > 0 ? .4 : -.4) ) ) );
 
@@ -930,14 +826,11 @@ function reset()
 		p.mark =
 		p.marksLastX =
 		p.marksLastY = 0;
-		p.marksLeftTopX = [];
-		p.marksLeftTopY = [];
-		p.marksLeftBottomX = [];
-		p.marksLeftBottomY = [];
-		p.marksRightTopX = [];
-		p.marksRightTopY = [];
-		p.marksRightBottomX = [];
-		p.marksRightBottomY = [];
+		p.marksLeftX = [];
+		p.marksLeftY = [];
+		p.marksRightX = [];
+		p.marksRightY = [];
+		p.marksAngle = [];
 
 		p.equipment = [
 			{ sprite: sprites.pole },
