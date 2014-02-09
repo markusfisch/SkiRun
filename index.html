@@ -11,15 +11,54 @@ body
 	background: #d5f6ff;
 	margin: 0; padding: 0;
 	overflow: hidden;
+	font: 20pt sans-serif; color: #25464f;
+	letter-spacing: .1em;
+	line-height: 150%;
+	font-style: italic;
+	font-weight: bold;
 }
 
 canvas
 {
 	position: fixed;
+	z-index: 1;
+}
+
+.Overlay
+{
+	position: fixed;
+	left: 0; top: 0;
+	right: 0; bottom: 0;
+	z-index: 2;
+	padding: 1em;
+	background: #fff;
+	opacity: .8;
+}
+
+.Message
+{
+	margin: 20% auto; padding: 0;
+	max-width: 30em;
+}
+
+#LoadingOverlay
+{
+	text-align: center;
+}
+
+#LoadBar
+{
+	max-width: 30em;
+	height: 2em;
+	border: 1px solid #fff;
 }
 
 </style>
 <body>
+<!--div id="LoadingOverlay" class="Overlay">
+<p id="LoadingMessage" class="Message">Loading</p>
+<canvas id="LoadBar">Sorry, your browser cannot do this.</canvas>
+</div -->
 <script>
 
 "use strict";
@@ -67,8 +106,8 @@ var requestAnimFrame =
 	equipmentLength = 4,
 	sprites = {},
 	mobile = navigator.userAgent.match(
-		/ipad|iphone|ipod|android|blackberry|webos/i ),
-	orientationsLength = 36,
+		/ipad|iphone|ipod|android|mobile|blackberry|webos/i ),
+	orientationsLength = 72,//288,//36,
 	steepness = .2,
 	gravityVector = -Math.PI2,
 	gravityX = Math.cos( gravityVector )*steepness,
@@ -320,6 +359,7 @@ function drawObjects( ctx, left, top, upsideDown, player )
 
 function drawMarks( ctx, left, top )
 {
+return;
 	ctx.fillStyle = "#b5d6df";
 
 	for( var n = playersLength; n--; )
@@ -431,7 +471,7 @@ function draw()
 		ctx.fillStyle = n & 1 ? "#d5f6ff" : "#c5e6ef";
 		ctx.fillRect( 0, 0, width, height );
 
-		//drawMarks( ctx, left, top );
+		drawMarks( ctx, left, top );
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
@@ -477,7 +517,6 @@ function input()
 	for( var n = pointerLength; n--; )
 	{
 		var x = pointerX[n],
-			y = pointerY[n],
 			p = players[x/width | 0];
 
 		if( !p.controllable )
@@ -558,7 +597,7 @@ function ski( p )
 	p.lean += (vd*leanFactor-p.lean)*.1*factor;
 	/*p.sprite = 3+Math.max( -3, Math.min( 3, Math.round( p.lean ) ) );*/
 	p.sprite = 3+Math.max( -3, Math.min( 3, Math.round(
-		p.lean+(p.lean > 0 ? .3 : -.3) ) ) );
+		p.lean+(p.lean > 0 ? .4 : -.4) ) ) );
 
 	// difference from -PI to +PI
 	if( d > Math.PI )
@@ -857,7 +896,7 @@ function reset()
 			sprite: sprites["flake"+(1+(Math.random()*3 | 0))] };
 
 	var cell = slopeWidth/playersLength,
-		margin = rh << 1,
+		margin = rh,
 		x = cell >> 1,
 		y = slopeHeight-margin;
 
@@ -1033,8 +1072,7 @@ function scale( styleWidth )
 			}
 		},
 		step = Math.TAU/orientationsLength,
-		scale = Math.min( width, height )*.1/
-			frames.skierBlueStraight.frame.w;
+		scale = height*.1/frames.skierBlueStraight.frame.h;
 
 	if( scale > 1 )
 		scale = 1;
@@ -1050,7 +1088,7 @@ function scale( styleWidth )
 
 		if( sprite.rotate )
 		{
-			var size = Math.max( w, h ),
+			var size = Math.max( w, h )*1.4142,
 				center = size >> 1,
 				a = [];
 
@@ -1140,6 +1178,7 @@ function scale( styleWidth )
 		}
 	}
 
+	// calculate view horizon
 	var sprite = sprites.tree,
 		w = sprite.width,
 		h = sprite.height;
@@ -1259,7 +1298,7 @@ function init()
 		e.ontouchend = pointerUp;
 	}
 
-function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();
+/*function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();*/
 
 	last = new Date().getTime()-16;
 	run();
