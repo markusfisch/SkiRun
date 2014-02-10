@@ -22,6 +22,7 @@ canvas
 {
 	position: fixed;
 	z-index: 1;
+	border-left: 2px solid #fff;
 }
 
 </style>
@@ -140,7 +141,7 @@ function drawEquipment( equipment, ctx, left, top, upsideDown )
 		if( Math.max( Math.abs( vx ), Math.abs( vy ) ) > .2 )
 			e.angle = (e.angle+.03*(vx*vy)+Math.TAU) % Math.TAU;
 
-		var angle = e.angle;
+		var angle = Math.abs( e.angle );
 
 		if( upsideDown )
 		{
@@ -402,8 +403,7 @@ function draw()
 			right = x+centerX,
 			bottom = y+playerScreenBottom;
 
-		ctx.fillStyle = n & 1 ? "#d5f6ff" : "#c5e6ef";
-		ctx.fillRect( 0, 0, width, height );
+		ctx.clearRect( 0, 0, width, height );
 
 		drawMarks( ctx, left, top, ud );
 		drawObjects( ctx, left, top, ud, p );
@@ -787,46 +787,56 @@ function resetFlakes()
 
 function resetSlope()
 {
-	var rh = sprites.skierBlueStraight[0].height*6;
-
 	objectsLength = 0;
 	objects = [];
 
-	for( var y = 1-(1/slopeHeight*rh);
-		y > 0;
-		y -= Math.random()*.05 )
+	function addObject( x, y, name )
 	{
-		var x = Math.random();
-
 		objects[objectsLength] = {
-			x: x*.1*slopeWidth | 0,
+			x: x*slopeWidth | 0,
 			y: y*slopeHeight | 0,
-			sprite: sprites.tree,
-			spriteUpsideDown: sprites.treeUpsideDown };
-		++objectsLength;
+			sprite: sprites[name],
+			spriteUpsideDown: sprites[name+"UpsideDown"] };
 
-		objects[objectsLength] = {
-			x: (.9+x*.1)*slopeWidth | 0,
-			y: y*slopeHeight | 0,
-			sprite: sprites.tree,
-			spriteUpsideDown: sprites.treeUpsideDown };
 		++objectsLength;
+	}
 
-		objects[objectsLength] = {
-			x: (objectsLength % 2 ?
-				(x < .5 ? 0 : .9)+x*.1 :
-				x)*slopeWidth | 0,
-			y: y*slopeHeight | 0,
-			sprite: sprites.tree,
-			spriteUpsideDown: sprites.treeUpsideDown };
-		++objectsLength;
+	var xf = 1/slopeWidth,
+		yf = 1/slopeHeight,
+		tw = xf*sprites.tree.width,
+		th = yf*sprites.tree.height,
+		range = 1-tw*2,
+		range2 = range*.5,
+		margin = 1-yf*sprites.ski[0].height*4;
+
+	for( var y = 1;
+		y > 0;
+		y -= th )
+	{
+		var turn = (Math.cos( y*96 )-.5)*.1;
+
+		if( !(objectsLength % 5) &&
+			y < margin )
+			addObject(
+				(.5+turn)-(Math.random()*range-range2),
+				y,
+				"tree" );
+
+		addObject(
+			turn,
+			y+(Math.random()*.005-.0025),
+			"tree" );
+		addObject(
+			1+turn,
+			y+(Math.random()*.005-.0025),
+			"tree" );
 	}
 }
 
 function resetPlayers()
 {
 	var cell = slopeWidth/playersLength,
-		margin = sprites.skierBlueStraight[0].height,
+		margin = sprites.ski[0].height,
 		x = cell >> 1,
 		y = slopeHeight-margin;
 
@@ -851,8 +861,8 @@ function resetPlayers()
 		p.vy =
 		p.sx =
 		p.sy =
-		p.lean =
-		p.sprite = 0;
+		p.lean = 0;
+		p.sprite = 3;
 
 		p.skiAngle = -Math.PI2;
 
@@ -915,14 +925,14 @@ function setViewHorizon()
 
 function scaleSlope()
 {
-	var ref = sprites.skierBlueStraight[0],
+	var ref = sprites.ski[0],
 		rw = ref.width,
 		rh = ref.height;
 
 	maxSpeedFactor = 3/rh;
 
-	slopeWidth = rw*playersLength*3;
-	slopeHeight = sprites.tree.height*70;
+	slopeWidth = (rw*playersLength*3) | 0;
+	slopeHeight = sprites.tree.height*100;
 
 	if( (skiWidth = rw*.1 | 0) < 2 )
 		skiWidth = 2;
@@ -1137,7 +1147,7 @@ function scale( styleWidth )
 			}
 		},
 		step = Math.TAU/orientationsLength,
-		scale = height*.1/frames.skierBlueStraight.rect.h;
+		scale = height*.1/frames.ski.rect.h;
 
 	if( scale > 1 )
 		scale = 1;
