@@ -242,32 +242,32 @@ function drawPlayers( ctx, left, top, upsideDown )
 	}
 }
 
-function crash( player )
+function crash( p )
 {
-	if( player.crashed )
+	if( p.crashed )
 		return;
 
-	player.controllable = false;
-	player.crashed = true;
-	player.sprite = 7;
+	p.controllable = false;
+	p.crashed = true;
+	p.sprite = 7;
 
-	var equipment = player.equipment;
+	var equipment = p.equipment;
 
 	for( var n = equipmentLength; n--; )
 	{
 		var e = equipment[n],
-			vx = player.vx,
-			vy = player.vy,
+			vx = p.vx,
+			vy = p.vy,
 			r = Math.random(),
 			f = .75+r*.5;
 
 		r = (r-.5)*skiLength2;
 
-		e.x = player.x+r;
-		e.y = player.y+r;
+		e.x = p.x+r;
+		e.y = p.y+r;
 		e.vx = vx*f;
 		e.vy = vy*f;
-		e.angle = (player.skiAngle+r+Math.TAU) % Math.TAU;
+		e.angle = (p.skiAngle+r+Math.TAU) % Math.TAU;
 	}
 }
 
@@ -287,11 +287,11 @@ function drawObjects( ctx, left, top, upsideDown, player )
 
 		if( upsideDown )
 		{
-			sprite = sprites.treeUpsideDown;
+			sprite = o.spriteUpsideDown;
 			y = height-y;
 		}
 		else
-			sprite = sprites.tree;
+			sprite = o.sprite;
 
 		if( x > viewRight ||
 			x < viewLeft ||
@@ -412,10 +412,10 @@ function draw()
 	}
 }
 
-function turn( player, mod )
+function turn( p, mod )
 {
-	player.skiAngle = (player.skiAngle+mod+Math.TAU) % Math.TAU;
-	player.started = true;
+	p.skiAngle = (p.skiAngle+mod+Math.TAU) % Math.TAU;
+	p.started = true;
 }
 
 function input()
@@ -613,7 +613,7 @@ function ski( p )
 	}
 }
 
-function playerCollision()
+function playersCrash()
 {
 	for( var a = 0; a < playersLength; )
 	{
@@ -672,7 +672,7 @@ function move()
 		++moving;
 	}
 
-	playerCollision();
+	playersCrash();
 
 	return moving;
 }
@@ -801,13 +801,15 @@ function resetSlope()
 		objects[objectsLength] = {
 			x: x*.1*slopeWidth | 0,
 			y: y*slopeHeight | 0,
-			sprite: sprites.tree };
+			sprite: sprites.tree,
+			spriteUpsideDown: sprites.treeUpsideDown };
 		++objectsLength;
 
 		objects[objectsLength] = {
 			x: (.9+x*.1)*slopeWidth | 0,
 			y: y*slopeHeight | 0,
-			sprite: sprites.tree };
+			sprite: sprites.tree,
+			spriteUpsideDown: sprites.treeUpsideDown };
 		++objectsLength;
 
 		objects[objectsLength] = {
@@ -815,7 +817,8 @@ function resetSlope()
 				(x < .5 ? 0 : .9)+x*.1 :
 				x)*slopeWidth | 0,
 			y: y*slopeHeight | 0,
-			sprite: sprites.tree };
+			sprite: sprites.tree,
+			spriteUpsideDown: sprites.treeUpsideDown };
 		++objectsLength;
 	}
 }
