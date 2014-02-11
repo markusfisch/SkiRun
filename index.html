@@ -395,6 +395,7 @@ function draw()
 	{
 		var p = players[n],
 			ctx = p.ctx,
+			sx = p.screenCtx,
 			ud = p.upsideDown,
 			x = p.x,
 			y = p.y,
@@ -409,6 +410,9 @@ function draw()
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
+
+		sx.clearRect( 0, 0, width, height );
+		sx.drawImage( p.canvas, 0, 0 );
 	}
 }
 
@@ -1181,7 +1185,7 @@ function resize()
 		n < playersLength;
 		++n, x += w )
 	{
-		var s = players[n].canvas.style;
+		var s = players[n].screenCanvas.style;
 
 		s.left = x+"px";
 		s.top = "0px";
@@ -1196,13 +1200,14 @@ function resize()
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			c = p.canvas;
+			c = p.canvas,
+			sc = p.screenCanvas;
 
-		c.width = width;
-		c.height = height;
+		sc.width = c.width = width;
+		sc.height = c.height = height;
 
-		c.style.width = w+"px";
-		c.style.height = h+"px";
+		sc.style.width = c.style.width = w+"px";
+		sc.style.height = c.style.height = h+"px";
 
 		p.upsideDown = mobile ? (n & 1 ? false : true) : false;
 	}
@@ -1217,17 +1222,23 @@ function create()
 
 	for( var n = playersLength; n--; )
 	{
-		var c;
+		var c,
+			sc,
+			sx;
 
 		if( !(c = document.createElement( "canvas" )) ||
-			!(x = c.getContext( "2d" )) )
+			!(x = c.getContext( "2d" )) ||
+			!(sc = document.createElement( "canvas" )) ||
+			!(sx = sc.getContext( "2d" )) )
 			return;
 
 		c.playerIndex = n;
 
 		players[n] = {
 			canvas: c,
-			ctx: x };
+			ctx: x,
+			screenCanvas: sc,
+			screenCtx: sx };
 	}
 
 	ratio =
@@ -1260,7 +1271,7 @@ function init()
 	var e = document.body;
 
 	for( var n = playersLength; n--; )
-		e.appendChild( players[n].canvas );
+		e.appendChild( players[n].screenCanvas );
 
 	window.onresize = resize;
 
@@ -1279,7 +1290,7 @@ function init()
 		e.ontouchend = pointerUp;
 	}
 
-/*function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();*/
+function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();
 
 	last = new Date().getTime()-16;
 	run();
