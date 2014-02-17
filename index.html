@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-<title>2Ski</title>
+<title>nSki</title>
 <style>
 
 body
@@ -11,22 +11,39 @@ body
 	background: #d5f6ff;
 	margin: 0; padding: 0;
 	overflow: hidden;
-	font: 20pt sans-serif; color: #25464f;
-	letter-spacing: .1em;
-	line-height: 150%;
-	font-style: italic;
-	font-weight: bold;
 }
 
 canvas
 {
 	position: fixed;
 	z-index: 1;
+}
+
+.Border
+{
+	position: fixed;
+	z-index: 2;
+	width: 0;
+	height: 100%;
 	border-left: 2px solid #fff;
+}
+
+#Splash
+{
+	position: fixed;
+	z-index: 3;
+	left: 0; top: 0;
+	right: 0; bottom: 0;
+	background: #fff;
+	padding: 2em;
+	font: 12pt sans-serif; color: #111;
+	text-align: center;
+	opacity: .9;
 }
 
 </style>
 <body>
+<div id="Splash">Initializing</div>
 <script>
 
 "use strict";
@@ -35,7 +52,8 @@ Math.PI2 = Math.PI2 || Math.PI/2;
 Math.TAU = Math.TAU || Math.PI*2;
 Math.SINPI2 = Math.SINPI2 || Math.sin( Math.PI2 );
 
-var requestAnimFrame =
+var splash,
+	requestAnimFrame =
 		window.webkitRequestAnimationFrame ||
 		window.mozRequestAnimationFrame ||
 		window.msRequestAnimationFrame ||
@@ -53,6 +71,7 @@ var requestAnimFrame =
 	height,
 	centerX,
 	centerY,
+	borders = [],
 	viewLeft,
 	viewRight,
 	viewTop,
@@ -395,7 +414,6 @@ function draw()
 	{
 		var p = players[n],
 			ctx = p.ctx,
-			sx = p.screenCtx,
 			ud = p.upsideDown,
 			x = p.x,
 			y = p.y,
@@ -404,15 +422,13 @@ function draw()
 			right = x+centerX,
 			bottom = y+playerScreenBottom;
 
-		ctx.clearRect( 0, 0, width, height );
+		ctx.fillStyle = '#d5f6ff';
+		ctx.fillRect( 0, 0, width, height );
 
 		drawMarks( ctx, left, top, ud );
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
-
-		sx.clearRect( 0, 0, width, height );
-		sx.drawImage( p.canvas, 0, 0 );
 	}
 }
 
@@ -461,7 +477,7 @@ function input()
 		if( !p.controllable )
 			continue;
 
-		turn( p, -step/centerX*(centerX-(x % width)) );
+		turn( p, centerX-(x % width) > 0 ? -step : step );
 	}
 }
 
@@ -479,7 +495,7 @@ function spray( x, y, vx, vy )
 		flake = 0;
 }
 
-function roll( p )
+function skid( p )
 {
 	var vx = p.vx,
 		vy = p.vy,
@@ -655,7 +671,7 @@ function move()
 			continue;
 
 		if( p.crashed )
-			roll( p );
+			skid( p );
 		else if( p.started )
 		{
 			if( p.y < 0 )
@@ -684,7 +700,7 @@ function move()
 function run()
 {
 	now = new Date().getTime();
-	factor = 16/(now-last);
+	factor = (now-last)/16;
 	last = now;
 
 	input();
@@ -697,16 +713,20 @@ function run()
 	requestAnimFrame( run );
 }
 
-function getEvent( ev )
+function setPointers( ev, down )
 {
-	return ev || event;
-}
+	var e = ev || event;
 
-function setPointers( ev, set )
-{
-	var e = getEvent( ev );
+	if( !down )
+	{
+		// there are still touches
+		if( e.touches &&
+			(down = e.touches.length) )
+			return setPointers( e, down );
 
-	if( e.touches )
+		pointerLength = 0;
+	}
+	else if( e.touches )
 	{
 		pointerLength = e.touches.length;
 
@@ -737,29 +757,22 @@ function setPointers( ev, set )
 
 function pointerUp( ev )
 {
-	pointerLength = 0;
-
-	getEvent( ev ).preventDefault();
-	return false;
+	return setPointers( ev, 0 );
 }
 
 function pointerMove( ev )
 {
-	if( pointerLength )
-		return setPointers( ev );
-
-	getEvent( ev ).preventDefault();
-	return false;
+	return setPointers( ev, pointerLength );
 }
 
 function pointerDown( ev )
 {
-	return setPointers( ev );
+	return setPointers( ev, 1 );
 }
 
 function setKey( ev, pressed )
 {
-	var e = getEvent( ev );
+	var e = ev || event;
 
 	keysDown[e.keyCode] = pressed;
 
@@ -1174,6 +1187,11 @@ function scale( styleWidth )
 	setViewHorizon();
 }
 
+function toggleOrientation( n )
+{
+	players[n].upsideDown ^= true;
+}
+
 function resize()
 {
 	var w = window.innerWidth,
@@ -1185,10 +1203,13 @@ function resize()
 		n < playersLength;
 		++n, x += w )
 	{
-		var s = players[n].screenCanvas.style;
+		var s = players[n].canvas.style;
 
 		s.left = x+"px";
 		s.top = "0px";
+
+		if( n > 0 )
+			borders[n-1].style.left = x+"px";
 	}
 
 	width = w*ratio | 0;
@@ -1200,14 +1221,13 @@ function resize()
 	for( var n = playersLength; n--; )
 	{
 		var p = players[n],
-			c = p.canvas,
-			sc = p.screenCanvas;
+			c = p.canvas;
 
-		sc.width = c.width = width;
-		sc.height = c.height = height;
+		c.width = width;
+		c.height = height;
 
-		sc.style.width = c.style.width = w+"px";
-		sc.style.height = c.style.height = h+"px";
+		c.style.width = w+"px";
+		c.style.height = h+"px";
 
 		p.upsideDown = mobile ? (n & 1 ? false : true) : false;
 	}
@@ -1222,23 +1242,25 @@ function create()
 
 	for( var n = playersLength; n--; )
 	{
-		var c,
-			sc,
-			sx;
+		var c;
 
 		if( !(c = document.createElement( "canvas" )) ||
-			!(x = c.getContext( "2d" )) ||
-			!(sc = document.createElement( "canvas" )) ||
-			!(sx = sc.getContext( "2d" )) )
-			return;
+			!(x = c.getContext( "2d", { alpha: false } )) )
+			return false;
 
 		c.playerIndex = n;
 
 		players[n] = {
 			canvas: c,
-			ctx: x,
-			screenCanvas: sc,
-			screenCtx: sx };
+			ctx: x };
+
+		if( n > 0 )
+		{
+			var e = document.createElement( "div" );
+
+			e.className = "Border";
+			borders[n-1] = e;
+		}
 	}
 
 	ratio =
@@ -1249,54 +1271,90 @@ function create()
 			x.oBackingStorePixelRatio ||
 			x.backingStorePixelRatio ||
 			1);
+
+	return true;
 }
 
 function init()
 {
-	if( !atlas )
-	{
-		atlas = new Image();
-		atlas.src = "atlas.png";
-	}
+	now = new Date().getTime();
 
-	if( !atlas.complete )
+	if( (now = 500-(now-last)) > 0 )
 	{
-		setTimeout( init, 1000 );
+		// give mobile browsers some time to settle
+		// window.innerWidth/Height values
+		setTimeout( init, now );
 		return;
 	}
 
-	create();
+	if( !create() )
+	{
+		splash.innerHTML = "Sorry, this browser cannot run this game.";
+		return;
+	}
+
 	resize();
 
-	var e = document.body;
+	var d = document,
+		b = d.body;
 
 	for( var n = playersLength; n--; )
-		e.appendChild( players[n].screenCanvas );
+		b.appendChild( players[n].canvas );
+
+	for( var n = borders.length; n--; )
+		b.appendChild( borders[n] );
 
 	window.onresize = resize;
 
-	e.onkeydown = keyDown;
-	e.onkeyup = keyUp;
+	d.onkeydown = keyDown;
+	d.onkeyup = keyUp;
 
-	e.onmousedown = pointerDown;
-	e.onmousemove = pointerMove;
-	e.onmouseup = pointerUp;
-	e.onmouseout = pointerUp;
+	d.onmousedown = pointerDown;
+	d.onmousemove = pointerMove;
+	d.onmouseup = pointerUp;
+	d.onmouseout = pointerUp;
 
-	if( "ontouchstart" in e )
+	if( "ontouchstart" in d )
 	{
-		e.ontouchstart = pointerDown;
-		e.ontouchmove = pointerMove;
-		e.ontouchend = pointerUp;
+		d.ontouchstart = pointerDown;
+		d.ontouchmove = pointerMove;
+		d.ontouchend = pointerUp;
 	}
 
-function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();
+	splash.innerHTML = "Click/Touch to play!";
+	splash.onclick = function( ev )
+	{
+		splash.style.display = "none";
+		run();
 
-	last = new Date().getTime()-16;
-	run();
+		(ev || event).preventDefault();
+		return false;
+	};
 }
 
-window.onload = init;
+function load()
+{
+	if( !(splash = document.getElementById( "Splash" )) )
+		return;
+
+	splash.innerHTML = "Loading";
+
+	last = new Date().getTime();
+
+	if( atlas )
+	{
+		init();
+		return;
+	}
+
+	atlas = new Image();
+	atlas.src = "atlas.png";
+	atlas.onload = init;
+}
+
+window.onload = load;
+
+function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();
 
 </script>
 </body>
