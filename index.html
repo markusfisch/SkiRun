@@ -90,6 +90,8 @@ var splash,
 	flakesLength,
 	flakes = [],
 	flake,
+	marksLength,
+	marks = [],
 	equipmentLength = 4,
 	sprites = {},
 	mobile = navigator.userAgent.match(
@@ -110,7 +112,7 @@ var splash,
 	skiGap2PlusSki2,
 	skiGap2MinusSki2,
 	skiLength2,
-	marksFrequency = 240,
+	marksFrequency = 64,//1240,
 	flakeFrequency = 10,
 	leanFactor = 3/Math.PI2;
 
@@ -214,51 +216,6 @@ function drawPlayers( ctx, left, top, upsideDown )
 		y -= sprite.centerY;
 
 		ctx.drawImage( sprite, x, y );
-
-		if( p.crashed )
-			continue;
-
-		x = p.x;
-		y = p.y;
-
-		var m = p.mark,
-			sx = p.sx,
-			sy = p.sy,
-			lx = sx*skiLength2,
-			ly = sy*skiLength2,
-			leftX = x+sy*skiGap2PlusSki2,
-			leftY = y+sx*skiGap2PlusSki2,
-			rightX = x+sy*skiGap2MinusSki2,
-			rightY = y+sx*skiGap2MinusSki2;
-
-		p.marksLeftTopX[m] = leftX+lx | 0;
-		p.marksLeftTopY[m] = leftY+ly | 0;
-		p.marksLeftBottomX[m] = rightX-lx | 0;
-		p.marksLeftBottomY[m] = rightY-ly | 0;
-
-		leftX = x-sy*skiGap2MinusSki2;
-		leftY = y+sx*skiGap2MinusSki2;
-		rightX = x-sy*skiGap2PlusSki2,
-		rightY = y+sx*skiGap2PlusSki2,
-
-		p.marksRightTopX[m] = leftX+lx | 0;
-		p.marksRightTopY[m] = leftY+ly | 0;
-		p.marksRightBottomX[m] = rightX-lx | 0;
-		p.marksRightBottomY[m] = rightY-ly | 0;
-
-		if( now-p.lastMark > marksFrequency )
-		{
-			if( sx != p.marksLastX ||
-				sy != p.marksLastY )
-			{
-				p.marksLastX = sx;
-				p.marksLastY = sy;
-
-				++p.mark;
-			}
-
-			p.lastMark = now;
-		}
 	}
 }
 
@@ -338,72 +295,84 @@ function drawObjects( ctx, left, top, upsideDown, player )
 
 function drawMarks( ctx, left, top, upsideDown )
 {
-	ctx.fillStyle = "#f2fcff";
-
-	for( var n = playersLength; n--; )
+	for( var n = marksLength; n--; )
 	{
-		var p = players[n],
-			l = p.mark,
-			topX = p.marksLeftTopX,
-			topY = p.marksLeftTopY,
-			bottomX = p.marksLeftBottomX,
-			bottomY = p.marksLeftBottomY;
+		var m = marks[n],
+			mx = m.x,
+			my = m.y,
+			x = mx-left,
+			y = my-top,
+			sprite;
 
-		if( !l )
+		if( upsideDown )
+		{
+			sprite = m.spriteUpsideDown;
+			y = height-y;
+		}
+		else
+			sprite = m.sprite;
+
+		if( x > viewRight ||
+			x < viewLeft ||
+			y > viewBottom ||
+			y < viewTop )
 			continue;
 
-		for( var s = 2; s--; )
+		x -= sprite.centerX;
+		y -= sprite.centerY;
+
+		ctx.drawImage( sprite, x, y );
+	}
+}
+
+function recordCrashMarks( player )
+{
+	var heading = (player.skiAngle+Math.PI2) % Math.TAU,
+		sprite = sprites["flake"+(1+(Math.random()*3 | 0))];
+
+	marks[marksLength] = {
+		x: (player.x+(Math.random()-.5)*skiLength2) | 0,
+		y: (player.y+(Math.random()-.5)*skiLength2) | 0,
+		sprite: sprite,
+		spriteUpsideDown: sprite };
+
+	++marksLength;
+}
+
+function recordSkiMarks( player )
+{
+	var heading = (player.skiAngle+Math.PI2) % Math.TAU;
+
+	marks[marksLength] = {
+		x: player.x,
+		y: player.y,
+		sprite: sprites.skiMarks[indexFactor*heading | 0],
+		spriteUpsideDown: sprites.skiMarks[
+			indexFactor*turnAround( heading ) | 0] };
+
+	++marksLength;
+}
+
+function recordAndDrawMarks( ctx, left, top, upsideDown )
+{
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n];
+
+		if( now-p.lastMark > marksFrequency )
 		{
-			for( var m = l; ; )
-			{
-				var next = m;
+			if( !p.started ||
+				p.stopped )
+				continue;
+			else if( p.crashed )
+				recordCrashMarks( p );
+			else
+				recordSkiMarks( p );
 
-				if( --next < 0 )
-					break;
-
-				var lty = topY[m]-top,
-					lby = bottomY[m]-top,
-					rby = bottomY[next]-top,
-					rty = topY[next]-top;
-
-				if( upsideDown )
-				{
-					lty = height-lty;
-					lby = height-lby;
-					rby = height-rby;
-					rty = height-rty;
-				}
-
-				ctx.beginPath();
-
-				ctx.moveTo(
-					topX[m]-left,
-					lty );
-				ctx.lineTo(
-					bottomX[m]-left,
-					lby );
-
-				ctx.lineTo(
-					bottomX[next]-left,
-					rby );
-				ctx.lineTo(
-					topX[next]-left,
-					rty );
-
-				ctx.closePath();
-				ctx.fill();
-
-				m = next;
-			}
-
-			if( !s )
-				break;
-
-			topX = p.marksRightTopX;
-			topY = p.marksRightTopY;
-			bottomX = p.marksRightBottomX;
-			bottomY = p.marksRightBottomY;
+			p.lastMark = now;
 		}
+
+		drawMarks( ctx, left, top, upsideDown );
 	}
 }
 
@@ -424,7 +393,7 @@ function draw()
 		ctx.fillStyle = '#d5f6ff';
 		ctx.fillRect( 0, 0, width, height );
 
-		drawMarks( ctx, left, top, ud );
+		recordAndDrawMarks( ctx, left, top, ud );
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
@@ -789,6 +758,12 @@ function keyDown( ev )
 	return setKey( ev, true );
 }
 
+function resetMarks()
+{
+	marksLength = 0;
+	marks = [];
+}
+
 function resetFlakes()
 {
 	flakesLength = 100;
@@ -885,18 +860,6 @@ function resetPlayers()
 		p.lastMark =
 		p.lastFlake = 0;
 
-		p.mark =
-		p.marksLastX =
-		p.marksLastY = 0;
-		p.marksLeftTopX = [];
-		p.marksLeftTopY = [];
-		p.marksLeftBottomX = [];
-		p.marksLeftBottomY = [];
-		p.marksRightTopX = [];
-		p.marksRightTopY = [];
-		p.marksRightBottomX = [];
-		p.marksRightBottomY = [];
-
 		p.equipment = [
 			{ sprite: sprites.pole },
 			{ sprite: sprites.pole },
@@ -923,6 +886,7 @@ function resetPlayers()
 function reset()
 {
 	resetSlope();
+	resetMarks();
 	resetFlakes();
 	resetPlayers();
 }
@@ -1058,11 +1022,11 @@ function scale( styleWidth )
 	var frames = {
 			skierBlueStraight: {
 				rotate: true,
-				rect: {/*skier-blue-straight*/x:1453,y:2,w:103,h:222}
+				rect: {/*skier-blue-straight*/x:1490,y:2,w:103,h:222}
 			},
 			skierBlueJump: {
 				rotate: true,
-				rect: {/*skier-blue-jump*/x:1129,y:2,w:196,h:222}
+				rect: {/*skier-blue-jump*/x:1166,y:2,w:196,h:222}
 			},
 			skierBlueLeanLeft1: {
 				rotate: true,
@@ -1093,15 +1057,15 @@ function scale( styleWidth )
 			},
 			skierBlueCrashed: {
 				rotate: true,
-				rect: {/*skier-blue-crashed*/x:1694,y:2,w:130,h:173}
+				rect: {/*skier-blue-crashed*/x:1731,y:2,w:130,h:173}
 			},
 			skierYellowStraight: {
 				rotate: true,
-				rect: {/*skier-yellow-straight*/x:1346,y:2,w:103,h:222}
+				rect: {/*skier-yellow-straight*/x:1383,y:2,w:103,h:222}
 			},
 			skierYellowJump: {
 				rotate: true,
-				rect: {/*skier-yellow-jump*/x:929,y:2,w:196,h:222}
+				rect: {/*skier-yellow-jump*/x:966,y:2,w:196,h:222}
 			},
 			skierYellowLeanLeft1: {
 				rotate: true,
@@ -1132,15 +1096,19 @@ function scale( styleWidth )
 			},
 			skierYellowCrashed: {
 				rotate: true,
-				rect: {/*skier-yellow-crashed*/x:1560,y:2,w:130,h:173}
+				rect: {/*skier-yellow-crashed*/x:1597,y:2,w:130,h:173}
 			},
 			pole: {
 				rotate: true,
-				rect: {/*pole*/x:1828,y:2,w:13,h:117}
+				rect: {/*pole*/x:1865,y:2,w:13,h:117}
 			},
 			ski: {
 				rotate: true,
-				rect: {/*ski*/x:1329,y:2,w:13,h:222}
+				rect: {/*ski*/x:1366,y:2,w:13,h:222}
+			},
+			skiMarks: {
+				rotate: true,
+				rect: {/*ski-marks*/x:929,y:2,w:33,h:223}
 			},
 			tree: {
 				rect: {/*tree*/x:526,y:2,w:195,h:256}
@@ -1150,16 +1118,16 @@ function scale( styleWidth )
 				rect: {/*tree*/x:526,y:2,w:195,h:256}
 			},
 			flake1: {
-				rect: {/*flake1*/x:1961,y:2,w:26,h:26}
+				rect: {/*flake1*/x:1998,y:2,w:26,h:26}
 			},
 			flake2: {
-				rect: {/*flake2*/x:1927,y:2,w:30,h:30}
+				rect: {/*flake2*/x:1964,y:2,w:30,h:30}
 			},
 			flake3: {
-				rect: {/*flake3*/x:1889,y:2,w:34,h:34}
+				rect: {/*flake3*/x:1926,y:2,w:34,h:34}
 			},
 			flake4: {
-				rect: {/*flake4*/x:1845,y:2,w:40,h:40}
+				rect: {/*flake4*/x:1882,y:2,w:40,h:40}
 			}
 		},
 		step = Math.TAU/orientationsLength,
