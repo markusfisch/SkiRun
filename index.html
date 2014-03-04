@@ -422,6 +422,7 @@ function draw()
 			right = x+centerX,
 			bottom = y+playerScreenBottom;
 
+		ctx.save();
 		ctx.fillStyle = '#d5f6ff';
 		ctx.fillRect( 0, 0, width, height );
 
@@ -429,6 +430,7 @@ function draw()
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
+		ctx.restore();
 	}
 }
 
@@ -1279,11 +1281,12 @@ function init()
 {
 	now = new Date().getTime();
 
-	if( (now = 500-(now-last)) > 0 )
+	if( !atlas.complete ||
+		now-last < 500 )
 	{
 		// give mobile browsers some time to settle
-		// window.innerWidth/Height values
-		setTimeout( init, now );
+		// their window.innerWidth/Height values
+		setTimeout( init, 500 );
 		return;
 	}
 
@@ -1304,27 +1307,28 @@ function init()
 	for( var n = borders.length; n--; )
 		b.appendChild( borders[n] );
 
-	window.onresize = resize;
-
-	d.onkeydown = keyDown;
-	d.onkeyup = keyUp;
-
-	d.onmousedown = pointerDown;
-	d.onmousemove = pointerMove;
-	d.onmouseup = pointerUp;
-	d.onmouseout = pointerUp;
-
-	if( "ontouchstart" in d )
-	{
-		d.ontouchstart = pointerDown;
-		d.ontouchmove = pointerMove;
-		d.ontouchend = pointerUp;
-	}
-
 	splash.innerHTML = "Click/Touch to play!";
 	splash.onclick = function( ev )
 	{
 		splash.style.display = "none";
+
+		window.onresize = resize;
+
+		d.onkeydown = keyDown;
+		d.onkeyup = keyUp;
+
+		d.onmousedown = pointerDown;
+		d.onmousemove = pointerMove;
+		d.onmouseup = pointerUp;
+		d.onmouseout = pointerUp;
+
+		if( "ontouchstart" in d )
+		{
+			d.ontouchstart = pointerDown;
+			d.ontouchmove = pointerMove;
+			d.ontouchend = pointerUp;
+		}
+
 		run();
 
 		(ev || event).preventDefault();
@@ -1341,7 +1345,8 @@ function load()
 
 	last = new Date().getTime();
 
-	if( atlas )
+	if( atlas &&
+		atlas.complete )
 	{
 		init();
 		return;
