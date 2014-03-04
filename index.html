@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-<title>nSki</title>
+<title>skix</title>
 <style>
 
 body
@@ -338,8 +338,7 @@ function drawObjects( ctx, left, top, upsideDown, player )
 
 function drawMarks( ctx, left, top, upsideDown )
 {
-return;
-	ctx.fillStyle = "#d5f6ff";
+	ctx.fillStyle = "#f2fcff";
 
 	for( var n = playersLength; n--; )
 	{
@@ -379,10 +378,10 @@ return;
 
 				ctx.moveTo(
 					topX[m]-left,
-					ty );
+					lty );
 				ctx.lineTo(
 					bottomX[m]-left,
-					by );
+					lby );
 
 				ctx.lineTo(
 					bottomX[next]-left,
