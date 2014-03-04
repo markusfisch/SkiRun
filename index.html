@@ -421,7 +421,6 @@ function draw()
 			right = x+centerX,
 			bottom = y+playerScreenBottom;
 
-		ctx.save();
 		ctx.fillStyle = '#d5f6ff';
 		ctx.fillRect( 0, 0, width, height );
 
@@ -429,7 +428,6 @@ function draw()
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
-		ctx.restore();
 	}
 }
 
