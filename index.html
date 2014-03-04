@@ -1276,10 +1276,8 @@ function create()
 
 function init()
 {
-	now = new Date().getTime();
-
 	if( !atlas.complete ||
-		now-last < 500 )
+		new Date().getTime()-last < 500 )
 	{
 		// give mobile browsers some time to settle
 		// their window.innerWidth/Height values
@@ -1304,7 +1302,10 @@ function init()
 	for( var n = borders.length; n--; )
 		b.appendChild( borders[n] );
 
-	splash.innerHTML = "Click/Touch to play!";
+	splash.innerHTML =
+		("ontouchstart" in d ? "Touch" : "Click")+
+		" to play!";
+
 	splash.onclick = function( ev )
 	{
 		splash.style.display = "none";
