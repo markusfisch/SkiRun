@@ -19,13 +19,22 @@ canvas
 	z-index: 1;
 }
 
-.Border
+.BorderVertical
 {
 	position: fixed;
 	z-index: 2;
 	width: 0;
 	height: 100%;
 	border-left: 2px solid #fff;
+}
+
+.BorderHorizontal
+{
+	position: fixed;
+	z-index: 2;
+	width: 100%;
+	height: 0;
+	border-top: 2px solid #fff;
 }
 
 #Splash
@@ -63,6 +72,7 @@ var splash,
 		{
 			setTimeout( callback, 16 );
 		},
+	resizeTimer = 0,
 	playersLength = 2,
 	players = [],
 	atlas,
@@ -71,6 +81,7 @@ var splash,
 	height,
 	centerX,
 	centerY,
+	vertical,
 	borders = [],
 	viewLeft,
 	viewRight,
@@ -359,17 +370,19 @@ function recordAndDrawMarks( ctx, left, top, upsideDown )
 	{
 		var p = players[n];
 
-		if( now-p.lastMark > marksFrequency )
+		if( p.started &&
+			!p.stopped &&
+			now-p.lastMark > marksFrequency &&
+			(p.lastMarkX != p.x || p.lastMarkY != p.y) )
 		{
-			if( !p.started ||
-				p.stopped )
-				continue;
-			else if( p.crashed )
+			if( p.crashed )
 				recordCrashMarks( p );
 			else
 				recordSkiMarks( p );
 
 			p.lastMark = now;
+			p.lastMarkX = p.x;
+			p.lastMarkY = p.y;
 		}
 
 		drawMarks( ctx, left, top, upsideDown );
@@ -440,7 +453,10 @@ function input()
 	for( var n = pointerLength; n--; )
 	{
 		var x = pointerX[n],
-			p = players[x/width | 0];
+			y = pointerY[n],
+			p = players[(vertical ?
+				x/width :
+				y/height) | 0];
 
 		if( !p.controllable )
 			continue;
@@ -857,8 +873,10 @@ function resetPlayers()
 
 		p.skiAngle = -Math.PI2;
 
+		p.lastFlake =
 		p.lastMark =
-		p.lastFlake = 0;
+		p.lastMarkX =
+		p.lastMarkY = 0;
 
 		p.equipment = [
 			{ sprite: sprites.pole },
@@ -1164,19 +1182,51 @@ function resize()
 	var w = window.innerWidth,
 		h = window.innerHeight;
 
-	w = w/playersLength | 0;
-
-	for( var n = 0, x = 0;
-		n < playersLength;
-		++n, x += w )
+	if( (vertical = w > h) )
 	{
-		var s = players[n].canvas.style;
+		w = w/playersLength | 0;
 
-		s.left = x+"px";
-		s.top = "0px";
+		for( var n = 0, x = 0;
+			n < playersLength;
+			++n, x += w )
+		{
+			var s = players[n].canvas.style;
 
-		if( n > 0 )
-			borders[n-1].style.left = x+"px";
+			s.left = x+"px";
+			s.top = "0px";
+
+			if( n > 0 )
+			{
+				var e = borders[n-1];
+
+				e.className = "BorderVertical";
+				e.style.top = "0px";
+				e.style.left = x+"px";
+			}
+		}
+	}
+	else
+	{
+		h = h/playersLength | 0;
+
+		for( var n = 0, y = 0;
+			n < playersLength;
+			++n, y += h )
+		{
+			var s = players[n].canvas.style;
+
+			s.left = "0px";
+			s.top = y+"px";
+
+			if( n > 0 )
+			{
+				var e = borders[n-1];
+
+				e.className = "BorderHorizontal";
+				e.style.top = y+"px";
+				e.style.left = "0px";
+			}
+		}
 	}
 
 	width = w*ratio | 0;
@@ -1201,6 +1251,26 @@ function resize()
 
 	scale( w );
 	reset();
+
+	if( splash.resizing )
+		splash.style.display = "none";
+}
+
+function scheduleResize()
+{
+	if( resizeTimer )
+		clearTimeout( resizeTimer );
+
+	splash.resizing = true;
+	splash.onclick = function( ev )
+	{
+		(ev || event).preventDefault();
+		return false;
+	};
+	splash.innerHTML = "Resizing";
+	splash.style.display = "block";
+
+	resizeTimer = setTimeout( resize, 200 );
 }
 
 function create()
@@ -1222,12 +1292,7 @@ function create()
 			ctx: x };
 
 		if( n > 0 )
-		{
-			var e = document.createElement( "div" );
-
-			e.className = "Border";
-			borders[n-1] = e;
-		}
+			borders[n-1] = document.createElement( "div" );
 	}
 
 	ratio =
@@ -1278,7 +1343,7 @@ function init()
 	{
 		splash.style.display = "none";
 
-		window.onresize = resize;
+		window.onresize = scheduleResize;
 
 		d.onkeydown = keyDown;
 		d.onkeyup = keyUp;
