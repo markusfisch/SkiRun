@@ -108,11 +108,11 @@ var splash,
 	mobile = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|mobile|blackberry|webos/i ),
 	orientationsLength = 72,
-	steepness = .2,
+	steepness,
 	gravityVector = -Math.PI2,
-	gravityX = Math.cos( gravityVector )*steepness,
-	gravityY = Math.sin( gravityVector )*steepness,
-	gravityLength = Math.sqrt( gravityX*gravityX + gravityY*gravityY ),
+	gravityX,
+	gravityY,
+	gravityLength,
 	indexFactor = orientationsLength/2/Math.PI,
 	reverseFactor = 1/Math.PI2,
 	maxSpeedFactor,
@@ -123,7 +123,7 @@ var splash,
 	skiGap2PlusSki2,
 	skiGap2MinusSki2,
 	skiLength2,
-	marksFrequency = 64,//1240,
+	marksFrequency = 64,
 	flakeFrequency = 10,
 	leanFactor = 3/Math.PI2;
 
@@ -927,8 +927,6 @@ function scaleSlope()
 		rw = ref.width,
 		rh = ref.height;
 
-	maxSpeedFactor = 3/rh;
-
 	slopeWidth = (rw*playersLength*3) | 0;
 	slopeHeight = sprites.tree.height*100;
 
@@ -941,6 +939,15 @@ function scaleSlope()
 	skiGap2PlusSki2 = skiGap2+(skiWidth >> 1);
 	skiGap2MinusSki2 = skiGap2-(skiWidth >> 1);
 	skiLength2 = rh >> 1;
+
+	// steepness and scaling factor
+	steepness = height*.0002;
+
+	gravityX = Math.cos( gravityVector )*steepness;
+	gravityY = Math.sin( gravityVector )*steepness;
+	gravityLength = Math.sqrt( gravityX*gravityX + gravityY*gravityY );
+
+	maxSpeedFactor = .02;
 }
 
 function rotateSprite( frame, rect, w, h, step )
@@ -1261,14 +1268,17 @@ function scheduleResize()
 	if( resizeTimer )
 		clearTimeout( resizeTimer );
 
-	splash.resizing = true;
-	splash.onclick = function( ev )
+	if( splash.started )
 	{
-		(ev || event).preventDefault();
-		return false;
-	};
-	splash.innerHTML = "Resizing";
-	splash.style.display = "block";
+		splash.resizing = true;
+		splash.onclick = function( ev )
+		{
+			(ev || event).preventDefault();
+			return false;
+		};
+		splash.innerHTML = "Resizing";
+		splash.style.display = "block";
+	}
 
 	resizeTimer = setTimeout( resize, 200 );
 }
@@ -1325,6 +1335,7 @@ function init()
 	}
 
 	resize();
+	window.onresize = scheduleResize;
 
 	var d = document,
 		b = d.body;
@@ -1342,8 +1353,7 @@ function init()
 	splash.onclick = function( ev )
 	{
 		splash.style.display = "none";
-
-		window.onresize = scheduleResize;
+		splash.started = true;
 
 		d.onkeydown = keyDown;
 		d.onkeyup = keyUp;
