@@ -718,20 +718,20 @@ function setPointers( ev, down )
 		{
 			var t = e.touches[n];
 
-			pointerX[n] = t.pageX*ratio;
-			pointerY[n] = t.pageY*ratio;
+			pointerX[n] = t.pageX*ratio | 0;
+			pointerY[n] = t.pageY*ratio | 0;
 		}
 	}
 	else if( typeof e.clientX !== "undefined" )
 	{
-		pointerX[0] = e.clientX*ratio;
-		pointerY[0] = e.clientY*ratio;
+		pointerX[0] = e.clientX*ratio | 0;
+		pointerY[0] = e.clientY*ratio | 0;
 		pointerLength = 1;
 	}
 	else if( typeof e.pageX !== "undefined" )
 	{
-		pointerX[0] = e.pageX*ratio;
-		pointerY[0] = e.pageY*ratio;
+		pointerX[0] = e.pageX*ratio | 0;
+		pointerY[0] = e.pageY*ratio | 0;
 		pointerLength = 1;
 	}
 
