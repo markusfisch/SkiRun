@@ -1047,15 +1047,15 @@ function scale( styleWidth )
 	var frames = {
 			skierBlueStraight: {
 				rotate: true,
-				rect: {/*skier-blue-straight*/x:1490,y:2,w:103,h:222}
+				rect: {/*skier-blue-straight*/x:1562,y:2,w:103,h:222}
 			},
 			skierBlueJump: {
 				rotate: true,
-				rect: {/*skier-blue-jump*/x:1166,y:2,w:196,h:222}
+				rect: {/*skier-blue-jump*/x:1238,y:2,w:196,h:222}
 			},
 			skierBlueLeanLeft1: {
 				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:827,y:2,w:98,h:242}
+				rect: {/*skier-blue-lean1-left*/x:936,y:2,w:98,h:242}
 			},
 			skierBlueLeanLeft2: {
 				rotate: true,
@@ -1068,7 +1068,7 @@ function scale( styleWidth )
 			skierBlueLeanRight1: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:827,y:2,w:98,h:242}
+				rect: {/*skier-blue-lean1-left*/x:936,y:2,w:98,h:242}
 			},
 			skierBlueLeanRight2: {
 				mirror: true,
@@ -1082,19 +1082,19 @@ function scale( styleWidth )
 			},
 			skierBlueCrashed: {
 				rotate: true,
-				rect: {/*skier-blue-crashed*/x:1731,y:2,w:130,h:173}
+				rect: {/*skier-blue-crashed*/x:1803,y:2,w:130,h:173}
 			},
 			skierYellowStraight: {
 				rotate: true,
-				rect: {/*skier-yellow-straight*/x:1383,y:2,w:103,h:222}
+				rect: {/*skier-yellow-straight*/x:1455,y:2,w:103,h:222}
 			},
 			skierYellowJump: {
 				rotate: true,
-				rect: {/*skier-yellow-jump*/x:966,y:2,w:196,h:222}
+				rect: {/*skier-yellow-jump*/x:1038,y:2,w:196,h:222}
 			},
 			skierYellowLeanLeft1: {
 				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:725,y:2,w:98,h:242}
+				rect: {/*skier-yellow-lean1-left*/x:834,y:2,w:98,h:242}
 			},
 			skierYellowLeanLeft2: {
 				rotate: true,
@@ -1107,7 +1107,7 @@ function scale( styleWidth )
 			skierYellowLeanRight1: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:725,y:2,w:98,h:242}
+				rect: {/*skier-yellow-lean1-left*/x:834,y:2,w:98,h:242}
 			},
 			skierYellowLeanRight2: {
 				mirror: true,
@@ -1121,19 +1121,19 @@ function scale( styleWidth )
 			},
 			skierYellowCrashed: {
 				rotate: true,
-				rect: {/*skier-yellow-crashed*/x:1597,y:2,w:130,h:173}
+				rect: {/*skier-yellow-crashed*/x:1669,y:2,w:130,h:173}
 			},
 			pole: {
 				rotate: true,
-				rect: {/*pole*/x:1865,y:2,w:13,h:117}
+				rect: {/*pole*/x:1937,y:2,w:13,h:117}
 			},
 			ski: {
 				rotate: true,
-				rect: {/*ski*/x:1366,y:2,w:13,h:222}
+				rect: {/*ski*/x:1438,y:2,w:13,h:222}
 			},
 			skiMarks: {
 				rotate: true,
-				rect: {/*ski-marks*/x:929,y:2,w:33,h:223}
+				rect: {/*ski-marks*/x:725,y:2,w:105,h:249}
 			},
 			tree: {
 				rect: {/*tree*/x:526,y:2,w:195,h:256}
@@ -1146,13 +1146,13 @@ function scale( styleWidth )
 				rect: {/*flake1*/x:1998,y:2,w:26,h:26}
 			},
 			flake2: {
-				rect: {/*flake2*/x:1964,y:2,w:30,h:30}
+				rect: {/*flake2*/x:1954,y:84,w:30,h:30}
 			},
 			flake3: {
-				rect: {/*flake3*/x:1926,y:2,w:34,h:34}
+				rect: {/*flake3*/x:1954,y:46,w:34,h:34}
 			},
 			flake4: {
-				rect: {/*flake4*/x:1882,y:2,w:40,h:40}
+				rect: {/*flake4*/x:1954,y:2,w:40,h:40}
 			}
 		},
 		step = Math.TAU/orientationsLength,
@@ -1400,7 +1400,7 @@ function load()
 
 window.onload = load;
 
-function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();
+/*function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();*/
 
 </script>
 </body>
