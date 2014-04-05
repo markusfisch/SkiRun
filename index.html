@@ -338,14 +338,14 @@ function drawMarks( ctx, left, top, upsideDown )
 
 function recordCrashMarks( player )
 {
-	var heading = (player.skiAngle+Math.PI2) % Math.TAU,
-		sprite = sprites["flake"+(1+(Math.random()*3 | 0))];
+	var heading = (player.skiAngle+Math.PI2) % Math.TAU;
 
 	marks[marksLength] = {
-		x: (player.x+(Math.random()-.5)*skiLength2) | 0,
-		y: (player.y+(Math.random()-.5)*skiLength2) | 0,
-		sprite: sprite,
-		spriteUpsideDown: sprite };
+		x: player.x,
+		y: player.y,
+		sprite: sprites.skiMarks[indexFactor*heading | 0],
+		spriteUpsideDown: sprites.skiMarks[
+			indexFactor*turnAround( heading ) | 0] };
 
 	++marksLength;
 }
