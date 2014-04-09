@@ -406,7 +406,7 @@ function draw()
 		ctx.fillStyle = '#d5f6ff';
 		ctx.fillRect( 0, 0, width, height );
 
-		recordAndDrawMarks( ctx, left, top, ud );
+		mobile || recordAndDrawMarks( ctx, left, top, ud );
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
