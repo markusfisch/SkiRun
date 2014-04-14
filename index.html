@@ -777,13 +777,13 @@ function keyDown( ev )
 function resetMarks()
 {
 	marksLength = 0;
-	marks = [];
+	marks.length = 0;
 }
 
 function resetFlakes()
 {
 	flakesLength = 100;
-	flakes = [];
+	flakes.length = 0;
 	flake = 0;
 
 	for( var n = flakesLength; n--; )
@@ -795,7 +795,7 @@ function resetFlakes()
 function resetSlope()
 {
 	objectsLength = 0;
-	objects = [];
+	objects.length = 0;
 
 	function addObject( x, y, name )
 	{
