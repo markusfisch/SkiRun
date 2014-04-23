@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-<title>skix</title>
+<title>Ski Duel</title>
 <style>
 
 body
@@ -37,22 +37,33 @@ canvas
 	border-top: 2px solid #fff;
 }
 
-#Splash
+#Hud
 {
 	position: fixed;
 	z-index: 3;
 	left: 0; top: 0;
 	right: 0; bottom: 0;
+}
+
+#Message
+{
+	position: fixed;
+	z-index: 4;
+	left: 0; top: 0;
+	right: 0; bottom: 0;
 	background: #fff;
-	padding: 2em;
-	font: 12pt sans-serif; color: #111;
+	padding: 30% 2em 2em;
+	font: 24pt sans-serif; color: #111;
+	font-weight: lighter;
+	letter-spacing: .4em;
+	line-height: 150%;
 	text-align: center;
-	opacity: .9;
+	text-transform: uppercase;
 }
 
 </style>
 <body>
-<div id="Splash">Initializing</div>
+<div id="Message">Initializing</div>
 <script>
 
 "use strict";
@@ -61,7 +72,8 @@ Math.PI2 = Math.PI2 || Math.PI/2;
 Math.TAU = Math.TAU || Math.PI*2;
 Math.SINPI2 = Math.SINPI2 || Math.sin( Math.PI2 );
 
-var splash,
+var hud,
+	message,
 	requestAnimFrame =
 		window.webkitRequestAnimationFrame ||
 		window.mozRequestAnimationFrame ||
@@ -73,6 +85,7 @@ var splash,
 			setTimeout( callback, 16 );
 		},
 	resizeTimer = 0,
+	playerColors = ["Blue", "Yellow"],
 	playersLength = 2,
 	players = [],
 	atlas,
@@ -291,6 +304,7 @@ function drawObjects( ctx, left, top, upsideDown, player )
 			cy = sprite.centerY;
 
 		if( !player.crashed &&
+			o.blocks &&
 			py >= oy-cy &&
 			py <= oy+cy &&
 			px >= ox-cx &&
@@ -661,7 +675,10 @@ function move()
 			if( p.y < 0 )
 			{
 				if( p.controllable )
+				{
 					p.controllable = false;
+					p.atFinish = now;
+				}
 
 				if( Math.abs( p.vx )+Math.abs( p.vy ) > .3 &&
 					p.skiAngle > Math.PI2 )
@@ -681,6 +698,41 @@ function move()
 	return moving;
 }
 
+function gameOver()
+{
+	message.gameOver = true;
+	message.onclick = function( ev )
+	{
+		restart();
+
+		(ev || event).preventDefault();
+		return false;
+	};
+	message.innerHTML = "Game Over";
+	message.style.display = "block";
+
+	var winner = -1,
+		min = now+1000;
+
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n];
+
+		if( !p.crashed &&
+			p.atFinish < min )
+		{
+			min = p.atFinish;
+			winner = n;
+		}
+	}
+
+	if( winner > -1 )
+		message.innerHTML =
+			"Player "+(winner+1)+" "+
+			playerColors[winner % playerColors.length]+
+			" won!";
+}
+
 function run()
 {
 	now = new Date().getTime();
@@ -689,12 +741,21 @@ function run()
 
 	input();
 
-	if( !move() )
-		reset();
+	if( !move() &&
+		!message.gameOver )
+		gameOver();
 
 	draw();
 
 	requestAnimFrame( run );
+}
+
+function restart()
+{
+	message.style.display = "none";
+	message.gameOver = false;
+
+	reset();
 }
 
 function setPointers( ev, down )
@@ -735,8 +796,8 @@ function setPointers( ev, down )
 		pointerLength = 1;
 	}
 
-	e.preventDefault();
-	return false;
+	// don't prevent default to make hud item clickable
+	return true;
 }
 
 function pointerUp( ev )
@@ -760,6 +821,9 @@ function setKey( ev, pressed )
 
 	keysDown[e.keyCode] = pressed;
 
+	if( message.gameOver )
+		restart();
+
 	e.preventDefault();
 	return false;
 }
@@ -772,6 +836,109 @@ function keyUp( ev )
 function keyDown( ev )
 {
 	return setKey( ev, true );
+}
+
+function hudResize()
+{
+	if( !hud )
+		return;
+
+	for( var n = hud.childNodes.length; n--; )
+		hud.children[n].reposition();
+}
+
+function hudCreate()
+{
+	var d = document,
+		frames = {
+			toggle: {/*toggle*/x:284,y:450,w:48,h:48},
+			left: {/*left*/x:440,y:450,w:48,h:48},
+			right: {/*right*/x:336,y:450,w:48,h:48},
+			leftA: {/*left-a*/x:492,y:450,w:48,h:48},
+			rightD: {/*right-d*/x:388,y:450,w:48,h:48} };
+
+	if( !(hud = d.createElement( "div" )) )
+		return;
+
+	hud.id = "Hud";
+
+	function hudAdd( frame, player, horizontal, vertical, action )
+	{
+		var e = d.createElement( "div" ),
+			s = e.style;
+
+		s.position = "fixed";
+		s.width = frame.w+"px";
+		s.height = frame.h+"px";
+		s.background = "url( atlas.png ) no-repeat";
+		s.backgroundPosition = "-"+frame.x+"px -"+frame.y+"px";
+
+		e.width = frame.w;
+		e.height = frame.h;
+		e.player = player;
+		e.reposition = function()
+		{
+			var margin = 8,
+				s = this.style,
+				p = this.player,
+				c = p.canvas.style,
+				w = parseInt( c.width ),
+				h = parseInt( c.height ),
+				l = parseInt( c.left ),
+				t = parseInt( c.top ),
+				r = l+w,
+				b = t+h;
+
+			l += margin;
+			t += margin;
+			r -= margin+this.width;
+			b -= margin+this.height;
+
+			s.left = (horizontal ? r : l)+"px";
+			s.top = (p.upsideDown ?
+				vertical ? t : b :
+				vertical ? b : t)+"px";
+		};
+		e.onclick = action;
+
+		hud.appendChild( e );
+	}
+
+	for( var n = playersLength; n--; )
+	{
+		var player = players[n];
+
+		if( mobile )
+			hudAdd( frames.toggle, player, 0, 0,
+				function( ev )
+				{
+					this.player.upsideDown ^= true;
+
+					hudResize();
+
+					(ev || event).preventDefault();
+					return false;
+				} );
+
+		var left,
+			right;
+
+		if( !n && !mobile )
+		{
+			left = frames.leftA;
+			right = frames.rightD;
+		}
+		else
+		{
+			left = frames.left;
+			right = frames.right;
+		}
+
+		hudAdd( left, player, 0, 1 );
+		hudAdd( right, player, 1, 1 );
+	}
+
+	d.body.appendChild( hud );
 }
 
 function resetMarks()
@@ -794,12 +961,20 @@ function resetFlakes()
 
 function resetSlope()
 {
+	var rt = sprites.tree1,
+		rtw = rt.width,
+		rth = rt.height;
+
 	objectsLength = 0;
 	objects.length = 0;
 
-	function addObject( x, y, name )
+	slopeWidth = rtw*10 | 0;
+	slopeHeight = rth*100 | 0;
+
+	function addObject( x, y, name, blocks )
 	{
 		objects[objectsLength] = {
+			blocks: blocks,
 			x: x*slopeWidth | 0,
 			y: y*slopeHeight | 0,
 			sprite: sprites[name],
@@ -810,9 +985,9 @@ function resetSlope()
 
 	var xf = 1/slopeWidth,
 		yf = 1/slopeHeight,
-		tw = xf*sprites.tree.width,
-		th = yf*sprites.tree.height,
-		range = 1-tw*2,
+		tw = xf*rtw,
+		th = yf*rth,
+		range = 1-tw*3,
 		range2 = range*.5,
 		margin = 1-yf*sprites.ski[0].height*4;
 
@@ -820,24 +995,40 @@ function resetSlope()
 		y > 0;
 		y -= th )
 	{
-		var turn = (Math.cos( y*96 )-.5)*.1;
+		var turn = (Math.cos( y*96 )-.5)*.1,
+			type = "tree"+Math.round( Math.random()+1 );
 
 		if( !(objectsLength % 5) &&
 			y < margin )
 			addObject(
 				(.5+turn)-(Math.random()*range-range2),
 				y,
-				"tree" );
+				"goal",
+				true );
 
 		addObject(
 			turn,
 			y+(Math.random()*.005-.0025),
-			"tree" );
+			type,
+			true );
 		addObject(
 			1+turn,
 			y+(Math.random()*.005-.0025),
-			"tree" );
+			type,
+			true );
 	}
+
+	addObject(
+		.5,
+		0,
+		"finish",
+		false );
+
+	addObject(
+		.5,
+		1-(((sprites.start.height << 1)+sprites.ski[0].height)*yf),
+		"start",
+		false );
 }
 
 function resetPlayers()
@@ -863,6 +1054,7 @@ function resetPlayers()
 		p.crashed =
 		p.started =
 		p.stopped = false;
+		p.atFinish = new Date().getTime();
 
 		p.vx =
 		p.vy =
@@ -911,7 +1103,7 @@ function reset()
 
 function setViewHorizon()
 {
-	var sprite = sprites.tree,
+	var sprite = sprites.tree1,
 		w = sprite.width,
 		h = sprite.height;
 
@@ -926,9 +1118,6 @@ function scaleSlope()
 	var ref = sprites.ski[0],
 		rw = ref.width,
 		rh = ref.height;
-
-	slopeWidth = (rw*playersLength*3) | 0;
-	slopeHeight = sprites.tree.height*100;
 
 	if( (skiWidth = rw*.1 | 0) < 2 )
 		skiWidth = 2;
@@ -1047,112 +1236,147 @@ function scale( styleWidth )
 	var frames = {
 			skierBlueStraight: {
 				rotate: true,
-				rect: {/*skier-blue-straight*/x:1562,y:2,w:103,h:222}
+				rect: {/*skier-blue-straight*/x:1776,y:166,w:103,h:222}
 			},
 			skierBlueJump: {
 				rotate: true,
-				rect: {/*skier-blue-jump*/x:1238,y:2,w:196,h:222}
+				rect: {/*skier-blue-jump*/x:1452,y:166,w:196,h:222}
 			},
 			skierBlueLeanLeft1: {
 				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:936,y:2,w:98,h:242}
+				rect: {/*skier-blue-lean1-left*/x:1150,y:166,w:98,h:242}
 			},
 			skierBlueLeanLeft2: {
 				rotate: true,
-				rect: {/*skier-blue-lean2-left*/x:138,y:2,w:132,h:262}
+				rect: {/*skier-blue-lean2-left*/x:352,y:166,w:132,h:262}
 			},
 			skierBlueLeanLeft3: {
 				rotate: true,
-				rect: {/*skier-blue-lean3-left*/x:400,y:2,w:122,h:257}
+				rect: {/*skier-blue-lean3-left*/x:614,y:166,w:122,h:257}
 			},
 			skierBlueLeanRight1: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:936,y:2,w:98,h:242}
+				rect: {/*skier-blue-lean1-left*/x:1150,y:166,w:98,h:242}
 			},
 			skierBlueLeanRight2: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-blue-lean2-left*/x:138,y:2,w:132,h:262}
+				rect: {/*skier-blue-lean2-left*/x:352,y:166,w:132,h:262}
 			},
 			skierBlueLeanRight3: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-blue-lean3-left*/x:400,y:2,w:122,h:257}
+				rect: {/*skier-blue-lean3-left*/x:614,y:166,w:122,h:257}
 			},
 			skierBlueCrashed: {
 				rotate: true,
-				rect: {/*skier-blue-crashed*/x:1803,y:2,w:130,h:173}
+				rect: {/*skier-blue-crashed*/x:1883,y:166,w:130,h:173}
 			},
 			skierYellowStraight: {
 				rotate: true,
-				rect: {/*skier-yellow-straight*/x:1455,y:2,w:103,h:222}
+				rect: {/*skier-yellow-straight*/x:1669,y:166,w:103,h:222}
 			},
 			skierYellowJump: {
 				rotate: true,
-				rect: {/*skier-yellow-jump*/x:1038,y:2,w:196,h:222}
+				rect: {/*skier-yellow-jump*/x:1252,y:166,w:196,h:222}
 			},
 			skierYellowLeanLeft1: {
 				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:834,y:2,w:98,h:242}
+				rect: {/*skier-yellow-lean1-left*/x:1048,y:166,w:98,h:242}
 			},
 			skierYellowLeanLeft2: {
 				rotate: true,
-				rect: {/*skier-yellow-lean2-left*/x:2,y:2,w:132,h:262}
+				rect: {/*skier-yellow-lean2-left*/x:216,y:166,w:132,h:262}
 			},
 			skierYellowLeanLeft3: {
 				rotate: true,
-				rect: {/*skier-yellow-lean3-left*/x:274,y:2,w:122,h:257}
+				rect: {/*skier-yellow-lean3-left*/x:488,y:166,w:122,h:257}
 			},
 			skierYellowLeanRight1: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:834,y:2,w:98,h:242}
+				rect: {/*skier-yellow-lean1-left*/x:1048,y:166,w:98,h:242}
 			},
 			skierYellowLeanRight2: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-yellow-lean2-left*/x:2,y:2,w:132,h:262}
+				rect: {/*skier-yellow-lean2-left*/x:216,y:166,w:132,h:262}
 			},
 			skierYellowLeanRight3: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-yellow-lean3-left*/x:274,y:2,w:122,h:257}
+				rect: {/*skier-yellow-lean3-left*/x:488,y:166,w:122,h:257}
 			},
 			skierYellowCrashed: {
 				rotate: true,
-				rect: {/*skier-yellow-crashed*/x:1669,y:2,w:130,h:173}
+				rect: {/*skier-yellow-crashed*/x:2,y:450,w:139,h:176}
 			},
 			pole: {
 				rotate: true,
-				rect: {/*pole*/x:1937,y:2,w:13,h:117}
+				rect: {/*pole*/x:267,y:450,w:13,h:117}
 			},
 			ski: {
 				rotate: true,
-				rect: {/*ski*/x:1438,y:2,w:13,h:222}
+				rect: {/*ski*/x:1652,y:166,w:13,h:222}
 			},
 			skiMarks: {
 				rotate: true,
-				rect: {/*ski-marks*/x:725,y:2,w:105,h:249}
+				rect: {/*ski-marks*/x:939,y:166,w:105,h:249}
 			},
-			tree: {
-				rect: {/*tree*/x:526,y:2,w:195,h:256}
+			tree1: {
+				rect: {/*tree1*/x:740,y:166,w:195,h:256}
 			},
-			treeUpsideDown: {
+			tree1UpsideDown: {
 				upsideDown: true,
-				rect: {/*tree*/x:526,y:2,w:195,h:256}
+				rect: {/*tree1*/x:740,y:166,w:195,h:256}
+			},
+			tree2: {
+				rect: {/*tree2*/x:2,y:166,w:210,h:280}
+			},
+			tree2UpsideDown: {
+				upsideDown: true,
+				rect: {/*tree2*/x:2,y:166,w:210,h:280}
+			},
+			flag: {
+				rect: {/*flag*/x:223,y:450,w:40,h:119}
+			},
+			flagUpsideDown: {
+				upsideDown: true,
+				rect: {/*flag*/x:223,y:450,w:40,h:119}
+			},
+			goal: {
+				rect: {/*goal*/x:145,y:450,w:74,h:119}
+			},
+			goalUpsideDown: {
+				upsideDown: true,
+				rect: {/*goal*/x:145,y:450,w:74,h:119}
+			},
+			start: {
+				rect: {/*start*/x:2,y:2,w:2017,h:78}
+			},
+			startUpsideDown: {
+				upsideDown: true,
+				rect: {/*start*/x:2,y:2,w:2017,h:78}
+			},
+			finish: {
+				rect: {/*finish*/x:2,y:84,w:2017,h:78}
+			},
+			finishUpsideDown: {
+				upsideDown: true,
+				rect: {/*finish*/x:2,y:84,w:2017,h:78}
 			},
 			flake1: {
-				rect: {/*flake1*/x:1998,y:2,w:26,h:26}
+				rect: {/*flake1*/x:544,y:450,w:26,h:26}
 			},
 			flake2: {
-				rect: {/*flake2*/x:1954,y:84,w:30,h:30}
+				rect: {/*flake2*/x:1965,y:343,w:30,h:30}
 			},
 			flake3: {
-				rect: {/*flake3*/x:1954,y:46,w:34,h:34}
+				rect: {/*flake3*/x:1927,y:343,w:34,h:34}
 			},
 			flake4: {
-				rect: {/*flake4*/x:1954,y:2,w:40,h:40}
+				rect: {/*flake4*/x:1883,y:343,w:40,h:40}
 			}
 		},
 		step = Math.TAU/orientationsLength,
@@ -1177,11 +1401,6 @@ function scale( styleWidth )
 
 	scaleSlope();
 	setViewHorizon();
-}
-
-function toggleOrientation( n )
-{
-	players[n].upsideDown ^= true;
 }
 
 function resize()
@@ -1258,9 +1477,10 @@ function resize()
 
 	scale( w );
 	reset();
+	hudResize();
 
-	if( splash.resizing )
-		splash.style.display = "none";
+	if( message.resizing )
+		message.style.display = "none";
 }
 
 function scheduleResize()
@@ -1268,16 +1488,16 @@ function scheduleResize()
 	if( resizeTimer )
 		clearTimeout( resizeTimer );
 
-	if( splash.started )
+	if( message.started )
 	{
-		splash.resizing = true;
-		splash.onclick = function( ev )
+		message.resizing = true;
+		message.onclick = function( ev )
 		{
 			(ev || event).preventDefault();
 			return false;
 		};
-		splash.innerHTML = "Resizing";
-		splash.style.display = "block";
+		message.innerHTML = "Resizing";
+		message.style.display = "block";
 	}
 
 	resizeTimer = setTimeout( resize, 200 );
@@ -1330,9 +1550,11 @@ function init()
 
 	if( !create() )
 	{
-		splash.innerHTML = "Sorry, this browser cannot run this game.";
+		message.innerHTML = "Sorry, this browser cannot run this game.";
 		return;
 	}
+
+	hudCreate();
 
 	resize();
 	window.onresize = scheduleResize;
@@ -1346,14 +1568,14 @@ function init()
 	for( var n = borders.length; n--; )
 		b.appendChild( borders[n] );
 
-	splash.innerHTML =
+	message.innerHTML =
 		("ontouchstart" in d ? "Touch" : "Click")+
 		" to play!";
 
-	splash.onclick = function( ev )
+	message.onclick = function( ev )
 	{
-		splash.style.display = "none";
-		splash.started = true;
+		message.style.display = "none";
+		message.started = true;
 
 		d.onkeydown = keyDown;
 		d.onkeyup = keyUp;
@@ -1379,10 +1601,10 @@ function init()
 
 function load()
 {
-	if( !(splash = document.getElementById( "Splash" )) )
+	if( !(message = document.getElementById( "Message" )) )
 		return;
 
-	splash.innerHTML = "Loading";
+	message.innerHTML = "Loading";
 
 	last = new Date().getTime();
 
@@ -1399,8 +1621,6 @@ function load()
 }
 
 window.onload = load;
-
-/*function stats(){var script=document.createElement('script');script.src='http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js';document.body.appendChild(script);script=document.createElement('script');script.innerHTML='var interval=setInterval(function(){if(typeof Stats==\'function\'){clearInterval(interval);var stats=new Stats();stats.domElement.style.position=\'fixed\';stats.domElement.style.left=\'0px\';stats.domElement.style.top=\'0px\';stats.domElement.style.zIndex=\'10000\';document.body.appendChild(stats.domElement);setInterval(function(){stats.update();},1000/60);}},100);';document.body.appendChild(script);}stats();*/
 
 </script>
 </body>
