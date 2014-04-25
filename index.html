@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-<title>Ski Duel</title>
+<title>Ski Run</title>
+<link rel="shortcut icon" href="icon.png"/>
 <style>
 
 body
@@ -45,6 +46,17 @@ canvas
 	right: 0; bottom: 0;
 }
 
+.Timer
+{
+	position: fixed;
+	padding-left: .25em;
+	font: 12pt sans-serif; color: #fff;
+	font-weight: lighter;
+	letter-spacing: .2em;
+	white-space: no-wrap;
+	text-align: right;
+}
+
 #Message
 {
 	position: fixed;
@@ -52,13 +64,22 @@ canvas
 	left: 0; top: 0;
 	right: 0; bottom: 0;
 	background: #fff;
-	padding: 30% 2em 2em;
+	padding: 4em 1em 0;
 	font: 24pt sans-serif; color: #111;
 	font-weight: lighter;
 	letter-spacing: .4em;
 	line-height: 150%;
 	text-align: center;
 	text-transform: uppercase;
+}
+
+@media all and (max-width: 496px)
+{
+	#Message
+	{
+		font-size: 12pt;
+		letter-spacing: .2em;
+	}
 }
 
 </style>
@@ -138,7 +159,43 @@ var hud,
 	skiLength2,
 	marksFrequency = 64,
 	flakeFrequency = 10,
-	leanFactor = 3/Math.PI2;
+	leanFactor = 3/Math.PI2,
+	lastTimeUpdate = 0,
+	goalFrequency = 2,
+	hillsFrequency = 3;
+
+function updateTime()
+{
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n],
+			t = p.timer,
+			time;
+
+		if( p.finished )
+			continue;
+
+		if( !p.started )
+			time = "00:00";
+		else
+		{
+			var s = (now-p.start)/1000 | 0,
+				m = s/60 | 0;
+
+			s %= 60;
+
+			if( s < 10 )
+				s = "0"+s;
+
+			if( m < 10 )
+				m = "0"+m;
+
+			time = m+":"+s;
+		}
+
+		t.innerHTML = time;
+	}
+}
 
 function drawFlakes( ctx, left, top, upsideDown )
 {
@@ -243,6 +300,17 @@ function drawPlayers( ctx, left, top, upsideDown )
 	}
 }
 
+function wobble( p )
+{
+	if( p.crashed )
+		return;
+
+	var intensity = 8*ratio;
+
+	p.x += (Math.random()-.5)*intensity;
+	p.y += (Math.random()-.5)*intensity;
+}
+
 function crash( p )
 {
 	if( p.crashed )
@@ -304,12 +372,12 @@ function drawObjects( ctx, left, top, upsideDown, player )
 			cy = sprite.centerY;
 
 		if( !player.crashed &&
-			o.blocks &&
+			o.interaction &&
 			py >= oy-cy &&
 			py <= oy+cy &&
 			px >= ox-cx &&
 			px <= ox+cx )
-			crash( player );
+			o.interaction( player );
 
 		x -= cx;
 		y -= cy;
@@ -430,7 +498,12 @@ function draw()
 function turn( p, mod )
 {
 	p.skiAngle = (p.skiAngle+mod+Math.TAU) % Math.TAU;
-	p.started = true;
+
+	if( !p.started )
+	{
+		p.start = now;
+		p.started = true;
+	}
 }
 
 function input()
@@ -677,6 +750,7 @@ function move()
 				if( p.controllable )
 				{
 					p.controllable = false;
+					p.finished = true;
 					p.atFinish = now;
 				}
 
@@ -726,11 +800,13 @@ function gameOver()
 		}
 	}
 
-	if( winner > -1 )
-		message.innerHTML =
-			"Player "+(winner+1)+" "+
-			playerColors[winner % playerColors.length]+
-			" won!";
+	if( winner < 0 )
+		return;
+
+	message.innerHTML =
+		"Player "+(winner+1)+" "+
+		playerColors[winner % playerColors.length]+
+		" won!";
 }
 
 function run()
@@ -746,6 +822,13 @@ function run()
 		gameOver();
 
 	draw();
+
+	var s = now/1000 | 0;
+	if( lastTimeUpdate != s )
+	{
+		updateTime();
+		lastTimeUpdate = s;
+	}
 
 	requestAnimFrame( run );
 }
@@ -845,22 +928,51 @@ function hudResize()
 
 	for( var n = hud.childNodes.length; n--; )
 		hud.children[n].reposition();
+
+	for( var n = playersLength; n--; )
+		players[n].timer.reposition();
 }
 
 function hudCreate()
 {
-	var d = document,
+	var margin = 8,
+		d = document,
 		frames = {
-			toggle: {/*toggle*/x:284,y:450,w:48,h:48},
-			left: {/*left*/x:440,y:450,w:48,h:48},
-			right: {/*right*/x:336,y:450,w:48,h:48},
-			leftA: {/*left-a*/x:492,y:450,w:48,h:48},
-			rightD: {/*right-d*/x:388,y:450,w:48,h:48} };
+			toggle: {/*toggle*/x:138,y:606,w:48,h:48},
+			left: {/*left*/x:138,y:762,w:48,h:48},
+			right: {/*right*/x:138,y:658,w:48,h:48},
+			leftA: {/*left-a*/x:138,y:814,w:48,h:48},
+			rightD: {/*right-d*/x:138,y:710,w:48,h:48} };
 
 	if( !(hud = d.createElement( "div" )) )
 		return;
 
 	hud.id = "Hud";
+
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n],
+			e;
+
+		if( (e = d.createElement( "div" )) )
+		{
+			e.className = "Timer";
+
+			e.player = p;
+			e.reposition = function()
+			{
+				var s = this.style,
+					p = this.player,
+					c = p.canvas.style;
+
+				s.left = parseInt( c.left )+margin+"px";
+				s.top = parseInt( c.top )+margin+"px";
+			};
+
+			hud.appendChild( e );
+			p.timer = e;
+		}
+	}
 
 	function hudAdd( frame, player, horizontal, vertical, action )
 	{
@@ -870,16 +982,16 @@ function hudCreate()
 		s.position = "fixed";
 		s.width = frame.w+"px";
 		s.height = frame.h+"px";
-		s.background = "url( atlas.png ) no-repeat";
-		s.backgroundPosition = "-"+frame.x+"px -"+frame.y+"px";
+		s.background =
+			"-"+frame.x+"px -"+frame.y+
+			"px url( atlas.png ) no-repeat";
 
 		e.width = frame.w;
 		e.height = frame.h;
 		e.player = player;
 		e.reposition = function()
 		{
-			var margin = 8,
-				s = this.style,
+			var s = this.style,
 				p = this.player,
 				c = p.canvas.style,
 				w = parseInt( c.width ),
@@ -908,17 +1020,16 @@ function hudCreate()
 	{
 		var player = players[n];
 
-		if( mobile )
-			hudAdd( frames.toggle, player, 0, 0,
-				function( ev )
-				{
-					this.player.upsideDown ^= true;
+		hudAdd( frames.toggle, player, 1, 0,
+			function( ev )
+			{
+				this.player.upsideDown ^= true;
 
-					hudResize();
+				hudResize();
 
-					(ev || event).preventDefault();
-					return false;
-				} );
+				(ev || event).preventDefault();
+				return false;
+			} );
 
 		var left,
 			right;
@@ -971,10 +1082,10 @@ function resetSlope()
 	slopeWidth = rtw*10 | 0;
 	slopeHeight = rth*100 | 0;
 
-	function addObject( x, y, name, blocks )
+	function addObject( x, y, name, interaction )
 	{
 		objects[objectsLength] = {
-			blocks: blocks,
+			interaction: interaction,
 			x: x*slopeWidth | 0,
 			y: y*slopeHeight | 0,
 			sprite: sprites[name],
@@ -998,37 +1109,44 @@ function resetSlope()
 		var turn = (Math.cos( y*96 )-.5)*.1,
 			type = "tree"+Math.round( Math.random()+1 );
 
-		if( !(objectsLength % 5) &&
-			y < margin )
-			addObject(
-				(.5+turn)-(Math.random()*range-range2),
-				y,
-				"goal",
-				true );
+		if( y < margin )
+		{
+			if( !(objectsLength % goalFrequency) )
+				addObject(
+					(.5+turn)-(Math.random()*range-range2),
+					y,
+					"goal",
+					crash );
+
+			if( !(objectsLength % hillsFrequency) )
+				addObject(
+					Math.random(),
+					y,
+					"hills",
+					wobble );
+		}
 
 		addObject(
 			turn,
 			y+(Math.random()*.005-.0025),
 			type,
-			true );
+			crash );
 		addObject(
 			1+turn,
 			y+(Math.random()*.005-.0025),
 			type,
-			true );
+			crash );
 	}
 
 	addObject(
 		.5,
 		0,
-		"finish",
-		false );
+		"finish" );
 
 	addObject(
 		.5,
 		1-(((sprites.start.height << 1)+sprites.ski[0].height)*yf),
-		"start",
-		false );
+		"start" );
 }
 
 function resetPlayers()
@@ -1051,10 +1169,14 @@ function resetPlayers()
 		p.y = y;
 
 		p.controllable = true;
+		p.finished =
 		p.crashed =
 		p.started =
 		p.stopped = false;
 		p.atFinish = new Date().getTime();
+
+		if( p.timer )
+			p.timer.innerHTML = "00:00";
 
 		p.vx =
 		p.vy =
@@ -1236,121 +1358,113 @@ function scale( styleWidth )
 	var frames = {
 			skierBlueStraight: {
 				rotate: true,
-				rect: {/*skier-blue-straight*/x:1776,y:166,w:103,h:222}
-			},
-			skierBlueJump: {
-				rotate: true,
-				rect: {/*skier-blue-jump*/x:1452,y:166,w:196,h:222}
+				rect: {/*skier-blue-straight*/x:441,y:392,w:103,h:222}
 			},
 			skierBlueLeanLeft1: {
 				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:1150,y:166,w:98,h:242}
+				rect: {/*skier-blue-lean1-left*/x:216,y:828,w:98,h:242}
 			},
 			skierBlueLeanLeft2: {
 				rotate: true,
-				rect: {/*skier-blue-lean2-left*/x:352,y:166,w:132,h:262}
+				rect: {/*skier-blue-lean2-left*/x:2,y:872,w:132,h:262}
 			},
 			skierBlueLeanLeft3: {
 				rotate: true,
-				rect: {/*skier-blue-lean3-left*/x:614,y:166,w:122,h:257}
+				rect: {/*skier-blue-lean3-left*/x:2,y:1399,w:122,h:257}
 			},
 			skierBlueLeanRight1: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:1150,y:166,w:98,h:242}
+				rect: {/*skier-blue-lean1-left*/x:216,y:828,w:98,h:242}
 			},
 			skierBlueLeanRight2: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-blue-lean2-left*/x:352,y:166,w:132,h:262}
+				rect: {/*skier-blue-lean2-left*/x:2,y:872,w:132,h:262}
 			},
 			skierBlueLeanRight3: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-blue-lean3-left*/x:614,y:166,w:122,h:257}
+				rect: {/*skier-blue-lean3-left*/x:2,y:1399,w:122,h:257}
 			},
 			skierBlueCrashed: {
 				rotate: true,
-				rect: {/*skier-blue-crashed*/x:1883,y:166,w:130,h:173}
+				rect: {/*skier-blue-crashed*/x:548,y:346,w:130,h:173}
 			},
 			skierYellowStraight: {
 				rotate: true,
-				rect: {/*skier-yellow-straight*/x:1669,y:166,w:103,h:222}
-			},
-			skierYellowJump: {
-				rotate: true,
-				rect: {/*skier-yellow-jump*/x:1252,y:166,w:196,h:222}
+				rect: {/*skier-yellow-straight*/x:441,y:166,w:103,h:222}
 			},
 			skierYellowLeanLeft1: {
 				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:1048,y:166,w:98,h:242}
+				rect: {/*skier-yellow-lean1-left*/x:216,y:582,w:98,h:242}
 			},
 			skierYellowLeanLeft2: {
 				rotate: true,
-				rect: {/*skier-yellow-lean2-left*/x:216,y:166,w:132,h:262}
+				rect: {/*skier-yellow-lean2-left*/x:2,y:606,w:132,h:262}
 			},
 			skierYellowLeanLeft3: {
 				rotate: true,
-				rect: {/*skier-yellow-lean3-left*/x:488,y:166,w:122,h:257}
+				rect: {/*skier-yellow-lean3-left*/x:2,y:1138,w:122,h:257}
 			},
 			skierYellowLeanRight1: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:1048,y:166,w:98,h:242}
+				rect: {/*skier-yellow-lean1-left*/x:216,y:582,w:98,h:242}
 			},
 			skierYellowLeanRight2: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-yellow-lean2-left*/x:216,y:166,w:132,h:262}
+				rect: {/*skier-yellow-lean2-left*/x:2,y:606,w:132,h:262}
 			},
 			skierYellowLeanRight3: {
 				mirror: true,
 				rotate: true,
-				rect: {/*skier-yellow-lean3-left*/x:488,y:166,w:122,h:257}
+				rect: {/*skier-yellow-lean3-left*/x:2,y:1138,w:122,h:257}
 			},
 			skierYellowCrashed: {
 				rotate: true,
-				rect: {/*skier-yellow-crashed*/x:2,y:450,w:139,h:176}
+				rect: {/*skier-yellow-crashed*/x:548,y:166,w:139,h:176}
 			},
 			pole: {
 				rotate: true,
-				rect: {/*pole*/x:267,y:450,w:13,h:117}
+				rect: {/*pole*/x:83,y:1913,w:13,h:117}
 			},
 			ski: {
 				rotate: true,
-				rect: {/*ski*/x:1652,y:166,w:13,h:222}
+				rect: {/*ski*/x:111,y:1660,w:13,h:222}
 			},
 			skiMarks: {
 				rotate: true,
-				rect: {/*ski-marks*/x:939,y:166,w:105,h:249}
+				rect: {/*ski-marks*/x:2,y:1660,w:105,h:249}
 			},
 			tree1: {
-				rect: {/*tree1*/x:740,y:166,w:195,h:256}
+				rect: {/*tree1*/x:216,y:322,w:195,h:256}
 			},
 			tree1UpsideDown: {
 				upsideDown: true,
-				rect: {/*tree1*/x:740,y:166,w:195,h:256}
+				rect: {/*tree1*/x:216,y:322,w:195,h:256}
 			},
 			tree2: {
-				rect: {/*tree2*/x:2,y:166,w:210,h:280}
+				rect: {/*tree2*/x:2,y:322,w:210,h:280}
 			},
 			tree2UpsideDown: {
 				upsideDown: true,
-				rect: {/*tree2*/x:2,y:166,w:210,h:280}
+				rect: {/*tree2*/x:2,y:322,w:210,h:280}
 			},
-			flag: {
-				rect: {/*flag*/x:223,y:450,w:40,h:119}
+			hills: {
+				rect: {/*hills*/x:2,y:166,w:435,h:152}
 			},
-			flagUpsideDown: {
+			hillsUpsideDown: {
 				upsideDown: true,
-				rect: {/*flag*/x:223,y:450,w:40,h:119}
+				rect: {/*hills*/x:2,y:166,w:435,h:152}
 			},
 			goal: {
-				rect: {/*goal*/x:145,y:450,w:74,h:119}
+				rect: {/*goal*/x:2,y:1913,w:77,h:119}
 			},
 			goalUpsideDown: {
 				upsideDown: true,
-				rect: {/*goal*/x:145,y:450,w:74,h:119}
+				rect: {/*goal*/x:2,y:1913,w:77,h:119}
 			},
 			start: {
 				rect: {/*start*/x:2,y:2,w:2017,h:78}
@@ -1367,16 +1481,16 @@ function scale( styleWidth )
 				rect: {/*finish*/x:2,y:84,w:2017,h:78}
 			},
 			flake1: {
-				rect: {/*flake1*/x:544,y:450,w:26,h:26}
+				rect: {/*flake1*/x:138,y:982,w:26,h:26}
 			},
 			flake2: {
-				rect: {/*flake2*/x:1965,y:343,w:30,h:30}
+				rect: {/*flake2*/x:138,y:948,w:30,h:30}
 			},
 			flake3: {
-				rect: {/*flake3*/x:1927,y:343,w:34,h:34}
+				rect: {/*flake3*/x:138,y:910,w:34,h:34}
 			},
 			flake4: {
-				rect: {/*flake4*/x:1883,y:343,w:40,h:40}
+				rect: {/*flake4*/x:138,y:866,w:40,h:40}
 			}
 		},
 		step = Math.TAU/orientationsLength,
