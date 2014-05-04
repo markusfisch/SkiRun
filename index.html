@@ -900,13 +900,6 @@ function move()
 function gameOver()
 {
 	message.gameOver = true;
-	message.onclick = function( ev )
-	{
-		restart();
-
-		(ev || event).preventDefault();
-		return false;
-	};
 	message.innerHTML = "Game Over";
 	message.style.display = "block";
 
@@ -1051,6 +1044,13 @@ function setPointers( ev, down )
 		pointerX[0] = e.pageX*ratio | 0;
 		pointerY[0] = e.pageY*ratio | 0;
 		pointerLength = 1;
+	}
+
+	if( pointerLength == 1 &&
+		message.gameOver )
+	{
+		restart();
+		pointerLength = 0;
 	}
 
 	checkToggle();
@@ -1510,11 +1510,6 @@ function scheduleResize()
 	if( message.started )
 	{
 		message.resizing = true;
-		message.onclick = function( ev )
-		{
-			(ev || event).preventDefault();
-			return false;
-		};
 		message.innerHTML = "Resizing";
 		message.style.display = "block";
 	}
@@ -1611,6 +1606,11 @@ function init()
 	{
 		message.style.display = "none";
 		message.started = true;
+		message.onclick = function( ev )
+		{
+			(ev || event).preventDefault();
+			return false;
+		};
 
 		d.onkeydown = keyDown;
 		d.onkeyup = keyUp;
