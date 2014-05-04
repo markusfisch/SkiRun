@@ -46,17 +46,6 @@ canvas
 	right: 0; bottom: 0;
 }
 
-.Timer
-{
-	position: fixed;
-	padding-left: .25em;
-	font: 12pt sans-serif; color: #fff;
-	font-weight: lighter;
-	letter-spacing: .2em;
-	white-space: no-wrap;
-	text-align: right;
-}
-
 #Message
 {
 	position: fixed;
@@ -93,9 +82,7 @@ Math.PI2 = Math.PI2 || Math.PI/2;
 Math.TAU = Math.TAU || Math.PI*2;
 Math.SINPI2 = Math.SINPI2 || Math.sin( Math.PI2 );
 
-var hud,
-	message,
-	requestAnimFrame =
+var requestAnimFrame =
 		window.webkitRequestAnimationFrame ||
 		window.mozRequestAnimationFrame ||
 		window.msRequestAnimationFrame ||
@@ -105,11 +92,163 @@ var hud,
 		{
 			setTimeout( callback, 16 );
 		},
+	resources = {
+		skierBlueStraight: {
+			rotate: true,
+			rect: {/*skier-blue-straight*/x:435,y:378,w:103,h:222}
+		},
+		skierBlueLeanLeft1: {
+			rotate: true,
+			rect: {/*skier-blue-lean1-left*/x:210,y:806,w:98,h:242}
+		},
+		skierBlueLeanLeft2: {
+			rotate: true,
+			rect: {/*skier-blue-lean2-left*/x:0,y:850,w:132,h:262}
+		},
+		skierBlueLeanLeft3: {
+			rotate: true,
+			rect: {/*skier-blue-lean3-left*/x:0,y:1369,w:122,h:257}
+		},
+		skierBlueLeanRight1: {
+			mirror: true,
+			rotate: true,
+			rect: {/*skier-blue-lean1-left*/x:210,y:806,w:98,h:242}
+		},
+		skierBlueLeanRight2: {
+			mirror: true,
+			rotate: true,
+			rect: {/*skier-blue-lean2-left*/x:0,y:850,w:132,h:262}
+		},
+		skierBlueLeanRight3: {
+			mirror: true,
+			rotate: true,
+			rect: {/*skier-blue-lean3-left*/x:0,y:1369,w:122,h:257}
+		},
+		skierBlueCrashed: {
+			rotate: true,
+			rect: {/*skier-blue-crashed*/x:538,y:332,w:130,h:173}
+		},
+		skierYellowStraight: {
+			rotate: true,
+			rect: {/*skier-yellow-straight*/x:435,y:156,w:103,h:222}
+		},
+		skierYellowLeanLeft1: {
+			rotate: true,
+			rect: {/*skier-yellow-lean1-left*/x:210,y:564,w:98,h:242}
+		},
+		skierYellowLeanLeft2: {
+			rotate: true,
+			rect: {/*skier-yellow-lean2-left*/x:0,y:588,w:132,h:262}
+		},
+		skierYellowLeanLeft3: {
+			rotate: true,
+			rect: {/*skier-yellow-lean3-left*/x:0,y:1112,w:122,h:257}
+		},
+		skierYellowLeanRight1: {
+			mirror: true,
+			rotate: true,
+			rect: {/*skier-yellow-lean1-left*/x:210,y:564,w:98,h:242}
+		},
+		skierYellowLeanRight2: {
+			mirror: true,
+			rotate: true,
+			rect: {/*skier-yellow-lean2-left*/x:0,y:588,w:132,h:262}
+		},
+		skierYellowLeanRight3: {
+			mirror: true,
+			rotate: true,
+			rect: {/*skier-yellow-lean3-left*/x:0,y:1112,w:122,h:257}
+		},
+		skierYellowCrashed: {
+			rotate: true,
+			rect: {/*skier-yellow-crashed*/x:538,y:156,w:139,h:176}
+		},
+		pole: {
+			rotate: true,
+			rect: {/*pole*/x:77,y:1875,w:13,h:117}
+		},
+		ski: {
+			rotate: true,
+			rect: {/*ski*/x:105,y:1626,w:13,h:222}
+		},
+		skiMarks: {
+			rotate: true,
+			rect: {/*ski-marks*/x:0,y:1626,w:105,h:249}
+		},
+		tree1: {
+			rect: {/*tree1*/x:210,y:308,w:195,h:256}
+		},
+		tree1UpsideDown: {
+			upsideDown: true,
+			rect: {/*tree1*/x:210,y:308,w:195,h:256}
+		},
+		tree2: {
+			rect: {/*tree2*/x:0,y:308,w:210,h:280}
+		},
+		tree2UpsideDown: {
+			upsideDown: true,
+			rect: {/*tree2*/x:0,y:308,w:210,h:280}
+		},
+		hills: {
+			rect: {/*hills*/x:0,y:156,w:435,h:152}
+		},
+		hillsUpsideDown: {
+			upsideDown: true,
+			rect: {/*hills*/x:0,y:156,w:435,h:152}
+		},
+		goal: {
+			rect: {/*goal*/x:0,y:1875,w:77,h:119}
+		},
+		goalUpsideDown: {
+			upsideDown: true,
+			rect: {/*goal*/x:0,y:1875,w:77,h:119}
+		},
+		start: {
+			rect: {/*start*/x:0,y:0,w:2017,h:78}
+		},
+		startUpsideDown: {
+			upsideDown: true,
+			rect: {/*start*/x:0,y:0,w:2017,h:78}
+		},
+		finish: {
+			rect: {/*finish*/x:0,y:78,w:2017,h:78}
+		},
+		finishUpsideDown: {
+			upsideDown: true,
+			rect: {/*finish*/x:0,y:78,w:2017,h:78}
+		},
+		flake1: {
+			rect: {/*flake1*/x:48,y:1994,w:26,h:26}
+		},
+		flake2: {
+			rect: {/*flake2*/x:132,y:758,w:30,h:30}
+		},
+		flake3: {
+			rect: {/*flake3*/x:132,y:724,w:34,h:34}
+		},
+		flake4: {
+			rect: {/*flake4*/x:132,y:684,w:40,h:40}
+		}
+	},
+	hudResources = {
+		toggle: {
+			rect: {/*toggle*/x:0,y:1994,w:48,h:48}
+		},
+		left: {
+			rect: {/*left*/x:132,y:636,w:48,h:48},
+		},
+		right: {
+			rect: {/*right*/x:132,y:588,w:48,h:48},
+		}
+	},
+	atlas,
+	message,
+	hudElements,
+	hudMargin,
 	resizeTimer = 0,
 	playerColors = ["Blue", "Yellow"],
 	playersLength = 2,
 	players = [],
-	atlas,
 	ratio,
 	width,
 	height,
@@ -164,37 +303,22 @@ var hud,
 	goalFrequency = 2,
 	hillsFrequency = 3;
 
-function updateTime()
+function drawHud( ctx, player )
 {
-	for( var n = playersLength; n--; )
-	{
-		var p = players[n],
-			t = p.timer,
-			time;
+	ctx.drawImage(
+		hudElements.toggle,
+		player.toggleLeft,
+		player.toggleTop );
 
-		if( p.finished )
-			continue;
+	ctx.drawImage(
+		hudElements.left,
+		player.hudLeft,
+		player.hudTop );
 
-		if( !p.started )
-			time = "00:00";
-		else
-		{
-			var s = (now-p.start)/1000 | 0,
-				m = s/60 | 0;
-
-			s %= 60;
-
-			if( s < 10 )
-				s = "0"+s;
-
-			if( m < 10 )
-				m = "0"+m;
-
-			time = m+":"+s;
-		}
-
-		t.innerHTML = time;
-	}
+	ctx.drawImage(
+		hudElements.right,
+		player.hudRight,
+		player.hudTop );
 }
 
 function drawFlakes( ctx, left, top, upsideDown )
@@ -492,6 +616,7 @@ function draw()
 		drawObjects( ctx, left, top, ud, p );
 		drawFlakes( ctx, left, top, ud );
 		drawPlayers( ctx, left, top, ud );
+		drawHud( ctx, p );
 	}
 }
 
@@ -823,13 +948,6 @@ function run()
 
 	draw();
 
-	var s = now/1000 | 0;
-	if( lastTimeUpdate != s )
-	{
-		updateTime();
-		lastTimeUpdate = s;
-	}
-
 	requestAnimFrame( run );
 }
 
@@ -839,6 +957,62 @@ function restart()
 	message.gameOver = false;
 
 	reset();
+}
+
+function hudResize()
+{
+	var w = hudElements.toggle.width,
+		h = hudElements.toggle.height;
+
+	for( var n = playersLength; n--; )
+	{
+		var p = players[n],
+			x = width-hudMargin-w,
+			y1 = hudMargin,
+			y2 = height-hudMargin-h;
+
+		if( p.upsideDown )
+		{
+			var tmp = y1;
+			y1 = y2;
+			y2 = tmp;
+		}
+
+		p.toggleLeft = x;
+		p.toggleRight = x+w;
+		p.toggleTop = y1;
+		p.toggleBottom = y1+h;
+
+		p.hudLeft = hudMargin;
+		p.hudRight = x;
+		p.hudTop = y2;
+	}
+}
+
+function checkToggle()
+{
+	if( pointerLength != 1 )
+		return;
+
+	var x = pointerX[0],
+		y = pointerY[0],
+		p = players[(vertical ?
+			x/width :
+			y/height) | 0];
+
+	x %= width;
+	y %= height;
+
+	if( x > p.toggleLeft &&
+		x < p.toggleRight &&
+		y > p.toggleTop &&
+		y < p.toggleBottom )
+	{
+		p.upsideDown ^= true;
+		hudResize();
+
+		pointerLength = 0;
+	}
 }
 
 function setPointers( ev, down )
@@ -879,8 +1053,10 @@ function setPointers( ev, down )
 		pointerLength = 1;
 	}
 
-	// don't prevent default to make hud item clickable
-	return true;
+	checkToggle();
+
+	e.preventDefault();
+	return false;
 }
 
 function pointerUp( ev )
@@ -919,137 +1095,6 @@ function keyUp( ev )
 function keyDown( ev )
 {
 	return setKey( ev, true );
-}
-
-function hudResize()
-{
-	if( !hud )
-		return;
-
-	for( var n = hud.childNodes.length; n--; )
-		hud.children[n].reposition();
-
-	for( var n = playersLength; n--; )
-		players[n].timer.reposition();
-}
-
-function hudCreate()
-{
-	var margin = 8,
-		d = document,
-		frames = {
-			toggle: {/*toggle*/x:138,y:606,w:48,h:48},
-			left: {/*left*/x:138,y:762,w:48,h:48},
-			right: {/*right*/x:138,y:658,w:48,h:48},
-			leftA: {/*left-a*/x:138,y:814,w:48,h:48},
-			rightD: {/*right-d*/x:138,y:710,w:48,h:48} };
-
-	if( !(hud = d.createElement( "div" )) )
-		return;
-
-	hud.id = "Hud";
-
-	for( var n = playersLength; n--; )
-	{
-		var p = players[n],
-			e;
-
-		if( (e = d.createElement( "div" )) )
-		{
-			e.className = "Timer";
-
-			e.player = p;
-			e.reposition = function()
-			{
-				var s = this.style,
-					p = this.player,
-					c = p.canvas.style;
-
-				s.left = parseInt( c.left )+margin+"px";
-				s.top = parseInt( c.top )+margin+"px";
-			};
-
-			hud.appendChild( e );
-			p.timer = e;
-		}
-	}
-
-	function hudAdd( frame, player, horizontal, vertical, action )
-	{
-		var e = d.createElement( "div" ),
-			s = e.style;
-
-		s.position = "fixed";
-		s.width = frame.w+"px";
-		s.height = frame.h+"px";
-		s.background =
-			"-"+frame.x+"px -"+frame.y+
-			"px url( atlas.png ) no-repeat";
-
-		e.width = frame.w;
-		e.height = frame.h;
-		e.player = player;
-		e.reposition = function()
-		{
-			var s = this.style,
-				p = this.player,
-				c = p.canvas.style,
-				w = parseInt( c.width ),
-				h = parseInt( c.height ),
-				l = parseInt( c.left ),
-				t = parseInt( c.top ),
-				r = l+w,
-				b = t+h;
-
-			l += margin;
-			t += margin;
-			r -= margin+this.width;
-			b -= margin+this.height;
-
-			s.left = (horizontal ? r : l)+"px";
-			s.top = (p.upsideDown ?
-				vertical ? t : b :
-				vertical ? b : t)+"px";
-		};
-		e.onclick = action;
-
-		hud.appendChild( e );
-	}
-
-	for( var n = playersLength; n--; )
-	{
-		var player = players[n];
-
-		hudAdd( frames.toggle, player, 1, 0,
-			function( ev )
-			{
-				this.player.upsideDown ^= true;
-
-				hudResize();
-
-				(ev || event).preventDefault();
-				return false;
-			} );
-
-		var left,
-			right;
-
-		if( !n && !mobile )
-		{
-			left = frames.leftA;
-			right = frames.rightD;
-		}
-		else
-		{
-			left = frames.left;
-			right = frames.right;
-		}
-
-		hudAdd( left, player, 0, 1 );
-		hudAdd( right, player, 1, 1 );
-	}
-
-	d.body.appendChild( hud );
 }
 
 function resetMarks()
@@ -1175,9 +1220,6 @@ function resetPlayers()
 		p.stopped = false;
 		p.atFinish = new Date().getTime();
 
-		if( p.timer )
-			p.timer.innerHTML = "00:00";
-
 		p.vx =
 		p.vy =
 		p.sx =
@@ -1261,7 +1303,7 @@ function scaleSlope()
 	maxSpeedFactor = .02;
 }
 
-function rotateSprite( frame, rect, w, h, step )
+function rotateSprite( res, rect, w, h, step )
 {
 	var size = Math.max( w, h )*1.4142,
 		center = size >> 1,
@@ -1279,13 +1321,13 @@ function rotateSprite( frame, rect, w, h, step )
 		c.centerX = center;
 		c.centerY = center;
 
-		if( frame.mirror )
+		if( res.mirror )
 		{
 			x.setTransform( -1, 0, 0, 1, 0, 0 );
 			x.translate( -center, center );
 			x.rotate( -angle );
 		}
-		else if( frame.upsideDown )
+		else if( res.upsideDown )
 		{
 			x.setTransform( -1, 0, 0, -1, 0, 0 );
 			x.translate( -center, -center );
@@ -1314,7 +1356,7 @@ function rotateSprite( frame, rect, w, h, step )
 	return a;
 }
 
-function scaleSprite( frame, rect, w, h )
+function scaleSprite( res, rect, w, h )
 {
 	var c = document.createElement( "canvas" ),
 		x = c.getContext( "2d" ),
@@ -1327,12 +1369,12 @@ function scaleSprite( frame, rect, w, h )
 	c.centerX = w >> 1;
 	c.centerY = h >> 1;
 
-	if( frame.mirror )
+	if( res.mirror )
 	{
 		x.setTransform( -1, 0, 0, 1, 0, 0 );
 		l = -w;
 	}
-	else if( frame.upsideDown )
+	else if( res.upsideDown )
 	{
 		x.setTransform( -1, 0, 0, -1, 0, 0 );
 		l = -w;
@@ -1355,162 +1397,24 @@ function scaleSprite( frame, rect, w, h )
 
 function scale( styleWidth )
 {
-	var frames = {
-			skierBlueStraight: {
-				rotate: true,
-				rect: {/*skier-blue-straight*/x:441,y:392,w:103,h:222}
-			},
-			skierBlueLeanLeft1: {
-				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:216,y:828,w:98,h:242}
-			},
-			skierBlueLeanLeft2: {
-				rotate: true,
-				rect: {/*skier-blue-lean2-left*/x:2,y:872,w:132,h:262}
-			},
-			skierBlueLeanLeft3: {
-				rotate: true,
-				rect: {/*skier-blue-lean3-left*/x:2,y:1399,w:122,h:257}
-			},
-			skierBlueLeanRight1: {
-				mirror: true,
-				rotate: true,
-				rect: {/*skier-blue-lean1-left*/x:216,y:828,w:98,h:242}
-			},
-			skierBlueLeanRight2: {
-				mirror: true,
-				rotate: true,
-				rect: {/*skier-blue-lean2-left*/x:2,y:872,w:132,h:262}
-			},
-			skierBlueLeanRight3: {
-				mirror: true,
-				rotate: true,
-				rect: {/*skier-blue-lean3-left*/x:2,y:1399,w:122,h:257}
-			},
-			skierBlueCrashed: {
-				rotate: true,
-				rect: {/*skier-blue-crashed*/x:548,y:346,w:130,h:173}
-			},
-			skierYellowStraight: {
-				rotate: true,
-				rect: {/*skier-yellow-straight*/x:441,y:166,w:103,h:222}
-			},
-			skierYellowLeanLeft1: {
-				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:216,y:582,w:98,h:242}
-			},
-			skierYellowLeanLeft2: {
-				rotate: true,
-				rect: {/*skier-yellow-lean2-left*/x:2,y:606,w:132,h:262}
-			},
-			skierYellowLeanLeft3: {
-				rotate: true,
-				rect: {/*skier-yellow-lean3-left*/x:2,y:1138,w:122,h:257}
-			},
-			skierYellowLeanRight1: {
-				mirror: true,
-				rotate: true,
-				rect: {/*skier-yellow-lean1-left*/x:216,y:582,w:98,h:242}
-			},
-			skierYellowLeanRight2: {
-				mirror: true,
-				rotate: true,
-				rect: {/*skier-yellow-lean2-left*/x:2,y:606,w:132,h:262}
-			},
-			skierYellowLeanRight3: {
-				mirror: true,
-				rotate: true,
-				rect: {/*skier-yellow-lean3-left*/x:2,y:1138,w:122,h:257}
-			},
-			skierYellowCrashed: {
-				rotate: true,
-				rect: {/*skier-yellow-crashed*/x:548,y:166,w:139,h:176}
-			},
-			pole: {
-				rotate: true,
-				rect: {/*pole*/x:83,y:1913,w:13,h:117}
-			},
-			ski: {
-				rotate: true,
-				rect: {/*ski*/x:111,y:1660,w:13,h:222}
-			},
-			skiMarks: {
-				rotate: true,
-				rect: {/*ski-marks*/x:2,y:1660,w:105,h:249}
-			},
-			tree1: {
-				rect: {/*tree1*/x:216,y:322,w:195,h:256}
-			},
-			tree1UpsideDown: {
-				upsideDown: true,
-				rect: {/*tree1*/x:216,y:322,w:195,h:256}
-			},
-			tree2: {
-				rect: {/*tree2*/x:2,y:322,w:210,h:280}
-			},
-			tree2UpsideDown: {
-				upsideDown: true,
-				rect: {/*tree2*/x:2,y:322,w:210,h:280}
-			},
-			hills: {
-				rect: {/*hills*/x:2,y:166,w:435,h:152}
-			},
-			hillsUpsideDown: {
-				upsideDown: true,
-				rect: {/*hills*/x:2,y:166,w:435,h:152}
-			},
-			goal: {
-				rect: {/*goal*/x:2,y:1913,w:77,h:119}
-			},
-			goalUpsideDown: {
-				upsideDown: true,
-				rect: {/*goal*/x:2,y:1913,w:77,h:119}
-			},
-			start: {
-				rect: {/*start*/x:2,y:2,w:2017,h:78}
-			},
-			startUpsideDown: {
-				upsideDown: true,
-				rect: {/*start*/x:2,y:2,w:2017,h:78}
-			},
-			finish: {
-				rect: {/*finish*/x:2,y:84,w:2017,h:78}
-			},
-			finishUpsideDown: {
-				upsideDown: true,
-				rect: {/*finish*/x:2,y:84,w:2017,h:78}
-			},
-			flake1: {
-				rect: {/*flake1*/x:138,y:982,w:26,h:26}
-			},
-			flake2: {
-				rect: {/*flake2*/x:138,y:948,w:30,h:30}
-			},
-			flake3: {
-				rect: {/*flake3*/x:138,y:910,w:34,h:34}
-			},
-			flake4: {
-				rect: {/*flake4*/x:138,y:866,w:40,h:40}
-			}
-		},
-		step = Math.TAU/orientationsLength,
-		scale = height*.1/frames.ski.rect.h;
+	var step = Math.TAU/orientationsLength,
+		scale = height*.1/resources.ski.rect.h;
 
 	if( scale > 1 )
 		scale = 1;
 
 	sprites = {};
 
-	for( var name in frames )
+	for( var name in resources )
 	{
-		var frame = frames[name],
-			r = frame.rect,
+		var res = resources[name],
+			r = res.rect,
 			w = r.w*scale | 0,
 			h = r.h*scale | 0;
 
-		sprites[name] = frame.rotate ?
-			rotateSprite( frame, r, w, h, step ) :
-			scaleSprite( frame, r, w, h );
+		sprites[name] = res.rotate ?
+			rotateSprite( res, r, w, h, step ) :
+			scaleSprite( res, r, w, h );
 	}
 
 	scaleSlope();
@@ -1591,6 +1495,7 @@ function resize()
 
 	scale( w );
 	reset();
+
 	hudResize();
 
 	if( message.resizing )
@@ -1615,6 +1520,22 @@ function scheduleResize()
 	}
 
 	resizeTimer = setTimeout( resize, 200 );
+}
+
+function hudCreate()
+{
+	hudElements = {};
+	hudMargin = ratio*8 | 0;
+
+	for( var name in hudResources )
+	{
+		var res = hudResources[name],
+			r = res.rect,
+			w = r.w*ratio,
+			h = r.h*ratio;
+
+		hudElements[name] = scaleSprite( res, r, w, h );
+	}
 }
 
 function create()
@@ -1648,6 +1569,8 @@ function create()
 			x.backingStorePixelRatio ||
 			1);
 
+	hudCreate();
+
 	return true;
 }
 
@@ -1667,8 +1590,6 @@ function init()
 		message.innerHTML = "Sorry, this browser cannot run this game.";
 		return;
 	}
-
-	hudCreate();
 
 	resize();
 	window.onresize = scheduleResize;
