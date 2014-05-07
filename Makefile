@@ -1,14 +1,18 @@
-OBJECTS = *.html *.png *.ico
-PRODUCTION = hhsw.de@ssh.strato.de:sites/SkiRun
+HTDOCS = htdocs
+SPRITES = sprites
+WEBROOT = hhsw.de@ssh.strato.de:sites/SkiRun/
 OPTIONS = \
 	--recursive \
+	--links \
 	--update \
 	--delete-after \
 	--times \
 	--compress
 
-up: atlas.png
-	rsync $(OPTIONS) $(OBJECTS) $(PRODUCTION)
+upload: atlas.png
+	rsync $(OPTIONS) \
+		$(HTDOCS)/* \
+		$(WEBROOT)
 
-atlas.png: img/*
-	BORDER=2 mkatlas img/* | patchatlas index.html
+atlas: $(SPRITES)
+	cd $(HTDOCS) && mkatlas ../$(SPRITES)/* | patchatlas index.html
