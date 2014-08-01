@@ -12,6 +12,7 @@ body
 	background: #d5f6ff;
 	margin: 0; padding: 0;
 	overflow: hidden;
+	-ms-touch-action: none;
 }
 
 canvas
@@ -73,7 +74,7 @@ canvas
 
 </style>
 <body>
-<div id="Message">Initializing</div>
+<div id="Message">Initializing...</div>
 <script>
 
 "use strict";
@@ -83,11 +84,11 @@ Math.TAU = Math.TAU || Math.PI*2;
 Math.SINPI2 = Math.SINPI2 || Math.sin( Math.PI2 );
 
 var requestAnimFrame =
+		window.requestAnimationFrame ||
 		window.webkitRequestAnimationFrame ||
 		window.mozRequestAnimationFrame ||
 		window.msRequestAnimationFrame ||
 		window.oRequestAnimationFrame ||
-		window.requestAnimationFrame ||
 		function( callback )
 		{
 			setTimeout( callback, 16 );
@@ -1665,7 +1666,7 @@ function load()
 	if( !(message = document.getElementById( "Message" )) )
 		return;
 
-	message.innerHTML = "Loading";
+	message.innerHTML = "Loading...";
 
 	last = new Date().getTime();
 
