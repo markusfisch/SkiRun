@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
 <title>Ski Run</title>
 <link rel="shortcut icon" href="icon.png"/>
+<link rel="apple-touch-icon-precomposed" href="icon.png"/>
 <style>
 
 body
@@ -50,31 +51,64 @@ canvas
 #Message
 {
 	position: fixed;
-	z-index: 4;
+	z-index: 9;
 	left: 0; top: 0;
 	right: 0; bottom: 0;
+	width: 100%; height: 100%;
+	padding: 0;
 	background: #fff;
-	padding: 4em 1em 0;
-	font: 18pt sans-serif; color: #111;
+	-webkit-transform-style: preserve-3d;
+	-moz-transform-style: preserve-3d;
+	transform-style: preserve-3d;
+}
+
+#MessageText
+{
+	position: relative;
+	top: 50%;
+	-webkit-transform: translateY( -50% );
+	-ms-transform: translateY( -50% );
+	transform: translateY( -50% );
+	max-width: 40em;
+	margin: 0 auto; padding: 1em;
+	font: 18pt sans-serif; color: #333;
 	font-weight: lighter;
-	letter-spacing: .4em;
+	letter-spacing: .2em;
 	line-height: 150%;
 	text-align: center;
 	text-transform: uppercase;
 }
 
-@media all and (max-width: 496px)
+@media screen and (max-width: 900px), screen and (max-height: 560px)
 {
-	#Message
+	#MessageText
 	{
-		font-size: 12pt;
-		letter-spacing: .2em;
+		width: 90%;
+		font-size: 16pt;
+	}
+}
+
+@media screen and (max-width: 700px), screen and (max-height: 420px)
+{
+	#MessageText
+	{
+		width: 90%;
+		font-size: 10pt;
+	}
+}
+
+@media screen and (max-width: 360px), screen and (max-height: 360px)
+{
+	#MessageText
+	{
+		width: 90%;
+		font-size: 8pt;
 	}
 }
 
 </style>
 <body>
-<div id="Message">Initializing...</div>
+<div id="Message"><div id="MessageText">Initializing...</div></div>
 <script>
 
 "use strict";
@@ -284,13 +318,13 @@ var requestAnimFrame =
 	mobile = navigator.userAgent.match(
 		/ipad|iphone|ipod|android|mobile|blackberry|webos/i ),
 	orientationsLength = 72,
+	orientationFactor = orientationsLength/Math.TAU,
+	reverseFactor = 1/Math.PI2,
 	steepness,
 	gravityVector = -Math.PI2,
 	gravityX,
 	gravityY,
 	gravityLength,
-	indexFactor = orientationsLength/2/Math.PI,
-	reverseFactor = 1/Math.PI2,
 	maxSpeedFactor,
 	slopeWidth,
 	slopeHeight,
@@ -369,7 +403,7 @@ function drawEquipment( equipment, ctx, left, top, upsideDown )
 		e.vx = vx;
 		e.vy = vy;
 
-		var sprite = e.sprite[indexFactor*angle | 0];
+		var sprite = e.sprite[orientationFactor*angle | 0];
 
 		x -= sprite.centerX;
 		y -= sprite.centerY;
@@ -401,7 +435,7 @@ function drawPlayers( ctx, left, top, upsideDown )
 				top,
 				upsideDown );
 
-		var sprite = p.sprites[p.sprite][indexFactor*heading | 0];
+		var sprite = p.sprites[p.sprite][orientationFactor*heading | 0];
 
 		x -= sprite.centerX;
 		y -= sprite.centerY;
@@ -498,7 +532,6 @@ function drawObjects( ctx, left, top, upsideDown, player )
 
 function drawMarks( ctx, left, top, upsideDown )
 {
-console.log( "draw marks at "+left+" / "+top );
 	for( var n = marksLength; n--; )
 	{
 		var m = marks[n],
@@ -536,9 +569,9 @@ function recordCrashMarks( player )
 	marks[marksLength] = {
 		x: player.x | 0,
 		y: player.y | 0,
-		sprite: sprites.skiMarks[indexFactor*heading | 0],
+		sprite: sprites.skiMarks[orientationFactor*heading | 0],
 		spriteUpsideDown: sprites.skiMarks[
-			indexFactor*turnAround( heading ) | 0] };
+			orientationFactor*turnAround( heading ) | 0] };
 
 	++marksLength;
 }
@@ -550,9 +583,9 @@ function recordSkiMarks( player )
 	marks[marksLength] = {
 		x: player.x | 0,
 		y: player.y | 0,
-		sprite: sprites.skiMarks[indexFactor*heading | 0],
+		sprite: sprites.skiMarks[orientationFactor*heading | 0],
 		spriteUpsideDown: sprites.skiMarks[
-			indexFactor*turnAround( heading ) | 0] };
+			orientationFactor*turnAround( heading ) | 0] };
 
 	++marksLength;
 }
@@ -891,7 +924,7 @@ function move()
 function gameOver()
 {
 	message.gameOver = true;
-	message.innerHTML = "Game Over";
+	message.text.innerHTML = "Game Over";
 	message.style.display = "block";
 
 	var winner = -1,
@@ -912,7 +945,7 @@ function gameOver()
 	if( winner < 0 )
 		return;
 
-	message.innerHTML =
+	message.text.innerHTML =
 		"Player "+(winner+1)+" "+
 		playerColors[winner % playerColors.length]+
 		" won!";
@@ -1022,10 +1055,11 @@ function setPointers( ev, down )
 {
 	var e = ev || event;
 
-	if( !down )
+	if( down < 1 )
 	{
-		// there are still touches
-		if( e.touches &&
+		// process remaining touches
+		if( pointerLength > 0 &&
+			e.touches &&
 			(down = e.touches.length) )
 			return setPointers( e, down );
 
@@ -1313,9 +1347,10 @@ function scaleSlope()
 	maxSpeedFactor = .02;
 }
 
-function rotateSprite( res, rect, w, h, step )
+function scaleAndRotateSprite( res, rect, w, h )
 {
-	var size = Math.max( w, h )*1.4142,
+	var step = Math.TAU/orientationsLength,
+		size = Math.max( w, h )*1.4142 | 0,
 		center = size >> 1,
 		a = [];
 
@@ -1407,23 +1442,20 @@ function scaleSprite( res, rect, w, h )
 
 function scale( styleWidth )
 {
-	var step = Math.TAU/orientationsLength,
-		scale = height*.1/resources.ski.rect.h;
+	var scale = height*.1/resources.ski.rect.h;
 
 	if( scale > 1 )
 		scale = 1;
-
-	sprites = {};
 
 	for( var name in resources )
 	{
 		var res = resources[name],
 			r = res.rect,
-			w = r.w*scale | 0,
-			h = r.h*scale | 0;
+			w = Math.max( r.w*scale | 0, 1 ),
+			h = Math.max( r.h*scale | 0, 1 );
 
 		sprites[name] = res.rotate ?
-			rotateSprite( res, r, w, h, step ) :
+			scaleAndRotateSprite( res, r, w, h ) :
 			scaleSprite( res, r, w, h );
 	}
 
@@ -1529,7 +1561,7 @@ function scheduleResize()
 	if( message.started )
 	{
 		message.resizing = true;
-		message.innerHTML = "Resizing";
+		message.text.innerHTML = "Resizing";
 		message.style.display = "block";
 	}
 
@@ -1607,7 +1639,8 @@ function init()
 
 	if( !create() )
 	{
-		message.innerHTML = "Sorry, this browser cannot run this game.";
+		message.text.innerHTML =
+			"Sorry, this browser cannot run this game.";
 		return;
 	}
 
@@ -1625,11 +1658,11 @@ function init()
 
 	b.appendChild( hudCanvas );
 
-	message.innerHTML =
+	message.text.innerHTML =
 		("ontouchstart" in d ? "Touch" : "Click")+
 		" to play!";
 
-	message.onclick = function( ev )
+	d.onkeyup = message.onclick = function( ev )
 	{
 		message.style.display = "none";
 		message.started = true;
@@ -1663,10 +1696,11 @@ function init()
 
 function load()
 {
-	if( !(message = document.getElementById( "Message" )) )
+	if( !(message = document.getElementById( "Message" )) ||
+		!(message.text = document.getElementById( "MessageText" )) )
 		return;
 
-	message.innerHTML = "Loading...";
+	message.text.innerHTML = "Loading...";
 
 	last = new Date().getTime();
 
