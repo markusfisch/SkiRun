@@ -953,6 +953,8 @@ function gameOver()
 
 function run()
 {
+	requestAnimFrame( run );
+
 	now = new Date().getTime();
 	factor = (now-last)/16;
 	last = now;
@@ -966,8 +968,6 @@ function run()
 
 		draw();
 	}
-
-	requestAnimFrame( run );
 }
 
 function restart()
